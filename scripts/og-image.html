@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Argent — Open Graph image</title>
+    <!--
+      The source of src/app/opengraph-image.jpg. Render it with `node scripts/render-og.mjs`.
+
+      The photograph and the glass are one WebGL2 pass. The words and the mark are ordinary elements
+      laid over it, and every element marked data-glass gets a pane of glass drawn under it: its box
+      and corner radius come from the layout, its bevel, thickness and frost from its attributes.
+    -->
+    <style>
+      @font-face {
+        font-family: "Hanken Grotesk";
+        src: url("../src/app/fonts/HankenGrotesk-Variable.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: #141518;
+      }
+
+      .plate {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        color: #fff;
+        font-family: "Hanken Grotesk", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+      }
+
+      canvas {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 1200px;
+        height: 630px;
+      }
+
+      .stack {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tag {
+        display: flex;
+        align-items: center;
+        height: 48px;
+        padding: 0 24px;
+        border-radius: 24px;
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: 0.012em;
+        color: rgb(255 255 255 / 0.95);
+        text-shadow: 0 1px 8px rgb(0 0 0 / 0.4);
+      }
+
+      .dock {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        height: 172px;
+        margin-top: 22px;
+        padding: 0 68px 0 42px;
+        border-radius: 86px;
+      }
+
+      .mark {
+        width: 88px;
+        height: 88px;
+        filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.42)) drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+      }
+
+      .name {
+        font-size: 92px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        text-shadow:
+          0 1px 1px rgb(0 0 0 / 0.22),
+          0 6px 28px rgb(0 0 0 / 0.28);
+      }
+
+      .line {
+        margin: 44px 0 0;
+        font-size: 31px;
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.012em;
+        color: rgb(255 255 255 / 0.92);
+        text-shadow: 0 1px 14px rgb(0 0 0 / 0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="plate">
+      <canvas width="1200" height="630"></canvas>
+      <div class="stack">
+        <div class="tag" data-glass data-bevel="21" data-depth="24" data-frost="6">Darkroom for macOS</div>
+        <div class="dock" data-glass data-bevel="38" data-depth="46" data-frost="8">
+          <svg class="mark" viewBox="100 100 824 824" aria-hidden="true">
+            <defs>
+              <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#3a3b41" />
+                <stop offset="1" stop-color="#1b1c1f" />
+              </linearGradient>
+              <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fff" stop-opacity="0.42" />
+                <stop offset="0.5" stop-color="#fff" stop-opacity="0.06" />
+                <stop offset="1" stop-color="#fff" stop-opacity="0.14" />
+              </linearGradient>
+            </defs>
+            <rect x="100" y="100" width="824" height="824" rx="230" fill="url(#tile)" />
+            <rect x="105" y="105" width="814" height="814" rx="225" fill="none" stroke="url(#edge)" stroke-width="10" />
+            <g transform="translate(100 100) scale(0.804688)">
+              <path fill="#B45A26" d="M505 212H324A112 112 0 0 0 212 324V700A112 112 0 0 0 324 812H505Z" />
+              <path
+                fill="#DEDFE1"
+                d="M519 212H700A112 112 0 0 1 812 324V700A112 112 0 0 1 700 812H519V684A172 172 0 0 0 519 340Z"
+              />
+              <path fill="#F2B27A" d="M505 340A172 172 0 0 0 505 684Z" />
+            </g>
+          </svg>
+          <span class="name">Argent</span>
+        </div>
+        <p class="line">Raw files, developed as film.</p>
+      </div>
+    </div>
+
+    <script id="fragment" type="x-shader/x-fragment">
+      #version 300 es
+      precision highp float;
+
+      const vec2 RES = vec2(1200.0, 630.0);
+      const int MAX_PANES = 4;
+      const int TAPS = 72;
+      const float IOR = 1.5;
+      /** Where the key light stands: up and to the left of the plate. */
+      const vec2 KEY = vec2(-0.5547, -0.8321);
+
+      uniform sampler2D u_photo;
+      uniform vec2 u_photoSize;
+      /** Focal point of the crop (0 to 1 on each axis) and its zoom past a plain cover fit. */
+      uniform vec3 u_crop;
+      uniform int u_count;
+      /** Centre and half size, in plate pixels. */
+      uniform vec4 u_box[MAX_PANES];
+      /** Corner radius, bevel width, thickness and frost radius, in plate pixels. */
+      uniform vec4 u_lens[MAX_PANES];
+      out vec4 fragColor;
+
+      float luma(vec3 c) {
+        return dot(c, vec3(0.2126, 0.7152, 0.0722));
+      }
+
+      float hash(vec2 p) {
+        vec3 q = fract(vec3(p.xyx) * 0.1031);
+        q += dot(q, q.yzx + 33.33);
+        return fract((q.x + q.y) * q.z);
+      }
+
+      /** The photograph in linear light, cover-fitted to the plate. */
+      vec3 photo(vec2 p, float lod) {
+        float scale = max(RES.x / u_photoSize.x, RES.y / u_photoSize.y) * u_crop.z;
+        vec2 shown = RES / scale;
+        vec2 origin = (u_photoSize - shown) * u_crop.xy;
+        return textureLod(u_photo, (origin + p / scale) / u_photoSize, lod).rgb;
+      }
+
+      /** The frame before it is developed: flat and unlit, the room it was taken in gone dim. */
+      vec3 latent(vec3 c) {
+        return mix(vec3(luma(c)), c, 0.62) * vec3(1.0, 0.98, 1.02) * 0.33;
+      }
+
+      /** The frame as the glass shows it: its colour and its light brought up. */
+      vec3 developed(vec3 c) {
+        return mix(vec3(luma(c)), c, 1.18) * vec3(1.05, 1.0, 0.93) * 0.98;
+      }
+
+      float sdPane(vec2 p, vec4 box, float radius) {
+        vec2 q = abs(p - box.xy) - box.zw + radius;
+        return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+      }
+
+      /** How far a ray entering the pane at this slope lands from where it went in. */
+      vec2 bend(vec3 normal, float height, float gap, float ior) {
+        vec3 inside = refract(vec3(0.0, 0.0, -1.0), normal, 1.0 / ior);
+        vec2 shift = inside.xy / max(-inside.z, 0.05) * height;
+        vec3 below = refract(inside, vec3(0.0, 0.0, 1.0), ior);
+        if (dot(below, below) > 0.0) shift += below.xy / max(-below.z, 0.2) * gap;
+        return shift;
+      }
+
+      void main() {
+        vec2 p = vec2(gl_FragCoord.x, RES.y - gl_FragCoord.y);
+
+        vec3 color = latent(photo(p, 0.0));
+        vec2 fromCentre = (p - RES * 0.5) / RES;
+        color *= mix(1.0, 0.46, smoothstep(0.2, 0.8, length(fromCentre * vec2(1.0, 1.3))));
+
+        // Each pane shades the frame beneath it and spills a little of its own light there.
+        for (int i = 0; i < MAX_PANES; i++) {
+          if (i >= u_count) break;
+          vec4 box = u_box[i];
+          float radius = u_lens[i].x;
+          float contact = sdPane(p - vec2(0.0, 5.0), box, radius);
+          float thrown = sdPane(p - vec2(0.0, 0.5 * box.w + 4.0), box, radius);
+          color *= 1.0 - 0.38 * pow(smoothstep(14.0, -4.0, contact), 1.6);
+          color *= 1.0 - 0.5 * pow(smoothstep(1.5 * box.w + 14.0, -0.4 * box.w, thrown), 1.6);
+          float spill = max(sdPane(p - vec2(0.0, 0.22 * box.w), box, radius), 0.0) / (0.75 * box.w + 10.0);
+          color += developed(photo(box.xy, 6.5)) * 0.1 * exp(-spill * spill);
+        }
+
+        for (int i = 0; i < MAX_PANES; i++) {
+          if (i >= u_count) break;
+          vec4 box = u_box[i];
+          float radius = u_lens[i].x;
+          float bevel = u_lens[i].y;
+          float depth = u_lens[i].z;
+          float frost = u_lens[i].w;
+
+          float d = sdPane(p, box, radius);
+          if (d > 1.0) continue;
+
+          vec2 e = vec2(0.75, 0.0);
+          vec2 outward = normalize(
+            vec2(
+              sdPane(p + e.xy, box, radius) - sdPane(p - e.xy, box, radius),
+              sdPane(p + e.yx, box, radius) - sdPane(p - e.yx, box, radius)
+            ) + 1e-5
+          );
+
+          // The top of the pane is flat; its rim falls away along a superellipse.
+          const float K = 2.4;
+          float inset = max(-d, 0.0);
+          float t = clamp(1.0 - inset / bevel, 0.0, 1.0);
+          float crown = pow(max(1.0 - pow(t, K), 1e-4), 1.0 / K);
+          float height = depth - bevel * (1.0 - crown);
+          float slope = min(pow(t, K - 1.0) * pow(max(1.0 - pow(t, K), 1e-4), 1.0 / K - 1.0), 7.0);
+          vec3 normal = normalize(vec3(outward * slope, 1.0));
+
+          // Each colour bends a little differently, which fringes the rim.
+          float gap = 0.35 * depth;
+          vec2 qr = p + bend(normal, height, gap, IOR - 0.035);
+          vec2 qg = p + bend(normal, height, gap, IOR);
+          vec2 qb = p + bend(normal, height, gap, IOR + 0.035);
+
+          float lod = log2(max(frost * 0.3, 1.0));
+          vec3 seen = vec3(0.0);
+          float weight = 0.0;
+          for (int k = 0; k < TAPS; k++) {
+            float f = (float(k) + 0.5) / float(TAPS);
+            float angle = float(k) * 2.39996323;
+            vec2 o = vec2(cos(angle), sin(angle)) * sqrt(f) * frost;
+            float w = exp(-2.6 * f);
+            seen += w * vec3(photo(qr + o, lod).r, photo(qg + o, lod).g, photo(qb + o, lod).b);
+            weight += w;
+          }
+
+          vec3 glass = mix(developed(seen / weight), vec3(1.0), 0.035);
+          glass *= 1.0 - 0.06 * (p.y - box.y) / box.w;
+
+          // The rim: shade under the lit edge, the light gathered again at the far one, the sky on
+          // the near side, and a bright line on the edge itself.
+          float facingKey = dot(outward, KEY);
+          glass *= 1.0 - 0.2 * pow(t, 1.6) * smoothstep(-0.1, 1.0, facingKey);
+          glass *= 1.0 + 1.1 * pow(t, 1.4) * (1.0 - t) * smoothstep(0.0, 1.0, -facingKey);
+          float fresnel = pow(1.0 - normal.z, 3.0);
+          glass += fresnel * vec3(0.62, 0.68, 0.78) * 0.22 * smoothstep(-0.4, 1.0, facingKey);
+
+          vec3 halfway = normalize(vec3(KEY * 0.72, 0.69) + vec3(0.0, 0.0, 1.0));
+          glass += vec3(1.0, 0.97, 0.92) * 0.45 * pow(max(dot(normal, halfway), 0.0), 60.0) * step(0.001, t);
+
+          float line = smoothstep(0.0, 0.9, inset) * (1.0 - smoothstep(1.1, 2.6, inset));
+          float lit = 0.1 + 0.95 * pow(max(facingKey, 0.0), 1.6) + 0.55 * pow(max(-facingKey, 0.0), 3.0);
+          glass += vec3(1.0, 0.98, 0.95) * line * lit;
+
+          color = mix(color, glass, smoothstep(0.7, -0.7, d));
+        }
+
+        // Back to display values, under a little grain.
+        color = pow(clamp(color, 0.0, 1.0), vec3(1.0 / 2.2));
+        color += (hash(p) + hash(p + 71.3) - 1.0) * 0.02;
+        fragColor = vec4(color, 1.0);
+      }
+    </script>
+
+    <script type="module">
+      const PHOTO = "../public/images/specimen-interior.jpg";
+      /** Focal point of the crop on each axis, then its zoom. */
+      const CROP = [0, 0.08, 1.12];
+      const MAX_PANES = 4;
+
+      const plate = document.querySelector(".plate");
+      const canvas = plate.querySelector("canvas");
+
+      function compile(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+        return shader;
+      }
+
+      /** One pane per data-glass element, measured against the plate. */
+      function panes() {
+        const origin = plate.getBoundingClientRect();
+        return [...plate.querySelectorAll("[data-glass]")].map((element) => {
+          const rect = element.getBoundingClientRect();
+          const halfWidth = rect.width / 2;
+          const halfHeight = rect.height / 2;
+          const radius = Math.min(parseFloat(getComputedStyle(element).borderTopLeftRadius), halfWidth, halfHeight);
+          const { bevel, depth, frost } = element.dataset;
+          return {
+            box: [rect.left - origin.left + halfWidth, rect.top - origin.top + halfHeight, halfWidth, halfHeight],
+            lens: [radius, Number(bevel), Number(depth), Number(frost)],
+          };
+        });
+      }
+
+      async function render() {
+        const image = new Image();
+        image.src = PHOTO;
+        await image.decode();
+        await document.fonts.load('600 92px "Hanken Grotesk"');
+        await document.fonts.ready;
+
+        const gl = canvas.getContext("webgl2", { antialias: false, preserveDrawingBuffer: true });
+        if (!gl) throw new Error("WebGL2 is unavailable");
+
+        const program = gl.createProgram();
+        gl.attachShader(
+          program,
+          compile(
+            gl,
+            gl.VERTEX_SHADER,
+            `#version 300 es
+            const vec2 POS[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
+            void main() { gl_Position = vec4(POS[gl_VertexID], 0.0, 1.0); }`
+          )
+        );
+        gl.attachShader(
+          program,
+          compile(gl, gl.FRAGMENT_SHADER, document.getElementById("fragment").textContent.trim())
+        );
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+        gl.useProgram(program);
+
+        // Stored as sRGB so every sample, and every level of the mip chain, is in linear light.
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+
+        const list = panes().slice(0, MAX_PANES);
+        const boxes = new Float32Array(MAX_PANES * 4);
+        const lenses = new Float32Array(MAX_PANES * 4);
+        list.forEach((pane, i) => {
+          boxes.set(pane.box, i * 4);
+          lenses.set(pane.lens, i * 4);
+        });
+
+        gl.uniform1i(gl.getUniformLocation(program, "u_photo"), 0);
+        gl.uniform2f(gl.getUniformLocation(program, "u_photoSize"), image.naturalWidth, image.naturalHeight);
+        gl.uniform3f(gl.getUniformLocation(program, "u_crop"), ...CROP);
+        gl.uniform1i(gl.getUniformLocation(program, "u_count"), list.length);
+        gl.uniform4fv(gl.getUniformLocation(program, "u_box"), boxes);
+        gl.uniform4fv(gl.getUniformLocation(program, "u_lens"), lenses);
+
+        gl.bindVertexArray(gl.createVertexArray());
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.finish();
+      }
+
+      // render-og.mjs waits on these two.
+      render().then(
+        () => (window.ogReady = true),
+        (error) => (window.ogError = String(error?.message ?? error))
+      );
+    </script>
+  </body>
+</html>

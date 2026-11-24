@@ -25,6 +25,12 @@ To regenerate [`src/data/stocks.ts`](src/data/stocks.ts) from a sibling checkout
 python3 scripts/extract-stocks.py --argent-dir ../Argent
 ```
 
+The social preview, [`src/app/opengraph-image.jpg`](src/app/opengraph-image.jpg), is a still of [`scripts/og-image.html`](scripts/og-image.html), which draws a specimen photograph and the glass over it in one WebGL2 pass. To render it again after changing that page (Node 22 or newer and a Chromium-family browser; set `CHROME_BIN` if none is found):
+
+```sh
+node scripts/render-og.mjs
+```
+
 ## Deploy to Vercel
 
 - One-click import: [Deploy to Vercel](https://vercel.com/new/import?s=https://github.com/CyR1en/Argent-web)

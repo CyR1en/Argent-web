@@ -1,3 +1,10 @@
+export const SITE_NAME = "Argent";
+export const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "https://argent-film.vercel.app";
+
 export const REPO_URL = "https://github.com/CyR1en/Argent";
 export const RELEASES_URL = `${REPO_URL}/releases`;
 /** The nightly's disk image keeps one name; every push to Argent's main replaces it. */

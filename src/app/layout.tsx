@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fragment_Mono } from "next/font/google";
 import localFont from "next/font/local";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const hankenGrotesk = localFont({
@@ -16,36 +17,33 @@ const fragmentMono = Fragment_Mono({
   display: "swap",
 });
 
-const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "https://argent-film.vercel.app";
+const TITLE = "Argent — Raw files, developed as film.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Argent — Raw files, developed as film.",
+  applicationName: SITE_NAME,
+  title: {
+    default: TITLE,
+    template: `%s — ${SITE_NAME}`,
+  },
   description:
     "Native macOS 27 darkroom for Sony RAW files. Modelled colour negative and optical print across 14 Kodak, Fujifilm, and tungsten emulsions on Apple silicon.",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "Argent — Raw files, developed as film.",
+    type: "website",
+    url: "/",
+    siteName: SITE_NAME,
+    title: TITLE,
     description:
       "Scene-linear Sony RAW developed through modelled colour negative and optical paper print. Open source for macOS 27 on Apple silicon.",
-    images: [
-      {
-        url: "/images/banner.jpg",
-        width: 2000,
-        height: 667,
-        alt: "Argent. Raw files, developed as film.",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Argent — Raw files, developed as film.",
+    title: TITLE,
     description:
       "Native development for Sony RAW files. Modelled colour negative and print. Made for Mac.",
-    images: ["/images/banner.jpg"],
   },
 };
 

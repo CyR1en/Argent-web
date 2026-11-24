@@ -14,8 +14,10 @@ const HERO_STOCK_IDS = [
 ];
 
 export function HeroEnlarger() {
+  const sectionRef = useRef<HTMLElement | null>(null);
   const calmRef = useRef<HTMLDivElement | null>(null);
   const frameBoxRef = useRef<HTMLDivElement | null>(null);
+  const stockMenuRef = useRef<HTMLDivElement | null>(null);
 
   const heroStocks = useMemo(
     () => STOCKS.filter((s) => HERO_STOCK_IDS.includes(s.id)),
@@ -28,6 +30,7 @@ export function HeroEnlarger() {
   const [holdWholeRaw, setHoldWholeRaw] = useState(false);
   const [stockMenuOpen, setStockMenuOpen] = useState(false);
   const [flaggedIds, setFlaggedIds] = useState<Record<string, boolean>>({});
+  const [scrollDepth, setScrollDepth] = useState(0);
   const hasInteractedRef = useRef(false);
 
   const stock = useMemo(
@@ -90,6 +93,52 @@ export function HeroEnlarger() {
     };
   }, []);
 
+  // Scroll-linked depth on hero frame & dock (disabled under prefers-reduced-motion)
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) return;
+
+    let rafId = 0;
+    const measure = () => {
+      rafId = 0;
+      const el = sectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const t = Math.min(1, Math.max(0, -rect.top / Math.max(320, rect.height * 0.72)));
+      setScrollDepth(t);
+    };
+
+    const onScroll = () => {
+      if (!rafId) rafId = requestAnimationFrame(measure);
+    };
+
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  // Close stock selector popover on outside click or Escape
+  useEffect(() => {
+    if (!stockMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (stockMenuRef.current && !stockMenuRef.current.contains(e.target as Node)) {
+        setStockMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setStockMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [stockMenuOpen]);
+
   const updateSplitFromClientX = (clientX: number) => {
     const el = frameBoxRef.current;
     if (!el) return;
@@ -136,6 +185,7 @@ export function HeroEnlarger() {
   return (
     <section
       id="top"
+      ref={sectionRef}
       className="relative overflow-hidden bg-[#141518] pb-16 pt-8 text-[#f2f2f0] sm:pb-24 sm:pt-12"
     >
       <LatentBackdrop calmElementRef={calmRef} />
@@ -196,7 +246,14 @@ export function HeroEnlarger() {
         </div>
 
         {/* Full-Bleed Liquid Glass Split-Compare Frame (mirrors Screenshots 2 & 3) */}
-        <div className="mt-10 sm:mt-12">
+        <div
+          className="mt-10 will-change-transform sm:mt-12"
+          style={{
+            transform: `scale(${(1 - scrollDepth * 0.035).toFixed(4)}) translateY(${(
+              scrollDepth * 14
+            ).toFixed(1)}px)`,
+          }}
+        >
           <div className="relative overflow-hidden rounded-[20px] bg-[#0e0f12] shadow-[0_32px_90px_rgba(0,0,0,0.68)] ring-1 ring-white/15">
             {/* Picture Surface (3:2 / 16:10 photographic canvas) */}
             <div className="relative aspect-[3/2] max-h-[680px] w-full overflow-hidden">
@@ -206,6 +263,8 @@ export function HeroEnlarger() {
                 alt={`${plate.label} photographed specimen rendered on ${
                   holdWholeRaw ? "Neutral RAW" : stock.displayName
                 }`}
+                loading="eager"
+                fetchPriority="high"
                 className="h-full w-full object-cover transition-[filter] duration-200"
                 style={{
                   filter: holdWholeRaw
@@ -267,6 +326,7 @@ export function HeroEnlarger() {
                     src={plate.src}
                     alt=""
                     aria-hidden="true"
+                    loading="eager"
                     className="h-full w-full object-cover"
                     style={{
                       filter: "contrast(0.90) saturate(0.84) brightness(1.03)",
@@ -360,7 +420,12 @@ export function HeroEnlarger() {
               </div>
 
               {/* Suspended Floating Bottom Liquid Glass Filmstrip Dock */}
-              <div className="pointer-events-none absolute inset-x-3 bottom-3.5 z-30 flex justify-center sm:inset-x-6">
+              <div
+                className="pointer-events-none absolute inset-x-3 bottom-3.5 z-30 flex justify-center sm:inset-x-6"
+                style={{
+                  transform: `translateY(${(-scrollDepth * 12).toFixed(1)}px)`,
+                }}
+              >
                 <div className="liquid-glass-dock pointer-events-auto relative flex max-w-full items-center gap-2.5 rounded-[14px] px-3 py-2">
                   {/* Left View Icons */}
                   <div className="hidden items-center gap-1 pr-1 sm:flex">
@@ -441,7 +506,7 @@ export function HeroEnlarger() {
                   </button>
 
                   {/* Stock Selector Button inside Dock */}
-                  <div className="relative">
+                  <div ref={stockMenuRef} className="relative">
                     <button
                       type="button"
                       onClick={() => setStockMenuOpen((o) => !o)}

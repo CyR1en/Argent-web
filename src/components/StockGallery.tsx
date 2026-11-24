@@ -334,6 +334,7 @@ export function StockGallery() {
                         <img
                           src={thumbPlate.src}
                           alt={s.displayName}
+                          loading="lazy"
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                           style={{ filter: s.grade.filter }}
                         />

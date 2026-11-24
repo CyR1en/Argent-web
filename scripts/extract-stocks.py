@@ -3,11 +3,16 @@
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 from pathlib import Path
 
-ARGENT_STOCKS = Path("/home/ubuntu/Argent/bake/stocks")
-OUT_FILE = Path("/home/ubuntu/Argent-Web/src/data/stocks.ts")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ARGENT_DIR = Path(
+    os.environ.get("ARGENT_DIR", str(REPO_ROOT.parent / "Argent"))
+)
+OUT_FILE = REPO_ROOT / "src" / "data" / "stocks.ts"
 
 ORDER = [
     ("kodak-portra-160", "portra160.json"),
@@ -235,9 +240,19 @@ def format_pub(raw_source: object, stock_id: str) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--argent-dir",
+        type=Path,
+        default=DEFAULT_ARGENT_DIR,
+        help="Path to a local checkout of the Argent repository",
+    )
+    args = parser.parse_args()
+    argent_stocks = args.argent_dir / "bake" / "stocks"
+
     stocks = []
     for stock_id, filename in ORDER:
-        raw = json.loads((ARGENT_STOCKS / filename).read_text(encoding="utf-8"))
+        raw = json.loads((argent_stocks / filename).read_text(encoding="utf-8"))
         meta = META[stock_id]
         cc = raw["characteristicCurves"]
         log_h = cc["logExposure"]

@@ -31,12 +31,38 @@ const STEPS: { id: WorkflowStep; shortcut: string; title: string; copy: string }
  */
 export function WorkflowStage() {
   const [step, setStep] = useState<WorkflowStep>("rolls");
+  const [exposure, setExposure] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [highlights, setHighlights] = useState(0);
   const [shadows, setShadows] = useState(0);
+  const [whites, setWhites] = useState(0);
+  const [blacks, setBlacks] = useState(0);
+  const [compareAuto, setCompareAuto] = useState(false);
   const [splitCompare, setSplitCompare] = useState(true);
   const [exportFormat, setExportFormat] = useState<"JPEG" | "HEIC" | "16-bit TIFF">("16-bit TIFF");
   const [exportSpace, setExportSpace] = useState<"sRGB" | "Display P3" | "Adobe RGB">("Display P3");
+
+  const editedCount = [exposure, contrast, highlights, shadows, whites, blacks].filter(
+    (v) => v !== 0
+  ).length;
+
+  const resetAdjustments = () => {
+    setExposure(0);
+    setContrast(0);
+    setHighlights(0);
+    setShadows(0);
+    setWhites(0);
+    setBlacks(0);
+  };
+
+  const adjContrast = compareAuto
+    ? 1.06
+    : 1.06 + (contrast + whites * 0.4 - blacks * 0.35) * 0.004;
+  const adjBrightness = compareAuto
+    ? 1.0
+    : Math.pow(2, exposure * 0.16) * (1.0 + (highlights + shadows + whites * 0.5 + blacks * 0.4) * 0.002);
+  const histShiftX = compareAuto ? 0 : exposure * 10;
+  const histScaleX = compareAuto ? 1 : Math.max(0.84, Math.min(1.18, 1 + contrast * 0.003));
 
   return (
     <section
@@ -141,13 +167,30 @@ export function WorkflowStage() {
                     type="button"
                     onClick={() => setStep(id)}
                     aria-label={`Switch window to ${id}`}
-                    className={`flex h-9 w-9 items-center justify-center rounded-[10px] font-mono text-[11px] transition-all ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
                       active
                         ? "liquid-glass-pill text-[#f1c24c]"
                         : "text-[#a4a6ae] hover:text-white"
                     }`}
                   >
-                    {id === "rolls" ? "R" : id === "adjust" ? "A" : "D"}
+                    {id === "rolls" ? (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="2" />
+                        <path d="M3 8.5h18M3 15.5h18M9 8.5v7M15 8.5v7" />
+                      </svg>
+                    ) : id === "adjust" ? (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                        <circle cx="9" cy="7" r="1.8" fill="#1d1e21" />
+                        <circle cx="15" cy="12" r="1.8" fill="#1d1e21" />
+                        <circle cx="8" cy="17" r="1.8" fill="#1d1e21" />
+                      </svg>
+                    ) : (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M8 10H6a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 18 10h-2" />
+                        <path d="M12 4v10M8.5 7.5 12 4l3.5 3.5" />
+                      </svg>
+                    )}
                   </button>
                 );
               })}
@@ -251,6 +294,7 @@ export function WorkflowStage() {
                                   <img
                                     src={fr.src}
                                     alt=""
+                                    loading="lazy"
                                     className="h-full w-full object-cover"
                                   />
                                 </div>
@@ -273,14 +317,12 @@ export function WorkflowStage() {
                       <img
                         src={PLATES[0].src}
                         alt="Foothills specimen inside Argent Adjust workspace"
-                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-[filter] duration-150"
                         style={{
-                          filter: `contrast(${(1.06 + contrast * 0.004).toFixed(
-                            2
-                          )}) brightness(${(
-                            1.0 +
-                            (highlights + shadows) * 0.002
-                          ).toFixed(2)}) saturate(1.03)`,
+                          filter: `contrast(${adjContrast.toFixed(3)}) brightness(${adjBrightness.toFixed(
+                            3
+                          )}) saturate(1.03)`,
                         }}
                       />
 
@@ -316,6 +358,7 @@ export function WorkflowStage() {
                             key={p.id}
                             src={p.src}
                             alt=""
+                            loading="lazy"
                             className={`h-7 w-10 rounded-[4px] object-cover ${
                               i === 0 ? "ring-1 ring-white" : "opacity-65"
                             }`}
@@ -334,28 +377,103 @@ export function WorkflowStage() {
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="text-[15px] font-semibold">Adjust</span>
-                        <span className="text-[12px] text-[#a4a6ae]">✓ Saved</span>
+                        <span className="text-[12px] text-[#a4a6ae]">
+                          {compareAuto ? "Auto baseline" : "✓ Saved"}
+                        </span>
+                      </div>
+
+                      {/* Reactive RGB Area Histogram matching Screenshots 2 & 3 */}
+                      <div className="mt-2.5 overflow-hidden rounded-[8px] border border-white/10 bg-[#121317] p-1.5">
+                        <svg
+                          viewBox="0 0 200 50"
+                          className="h-[46px] w-full"
+                          aria-hidden="true"
+                        >
+                          <g
+                            style={{
+                              transform: `translateX(${histShiftX.toFixed(1)}px) scaleX(${histScaleX.toFixed(3)})`,
+                              transformOrigin: "100px 50px",
+                              transition: "transform 160ms ease-out",
+                            }}
+                          >
+                            <path
+                              d="M0,50 L0,28 C25,18 48,38 76,34 C112,28 138,10 168,14 C184,16 192,36 200,46 L200,50 Z"
+                              fill="rgba(91, 155, 255, 0.45)"
+                            />
+                            <path
+                              d="M0,50 L0,38 C30,26 58,18 92,24 C128,30 150,8 178,22 C190,30 195,42 200,48 L200,50 Z"
+                              fill="rgba(82, 201, 125, 0.42)"
+                            />
+                            <path
+                              d="M0,50 L0,42 C28,36 52,16 85,20 C118,24 142,18 172,12 C186,9 194,33 200,48 L200,50 Z"
+                              fill="rgba(235, 87, 87, 0.42)"
+                            />
+                          </g>
+                        </svg>
                       </div>
 
                       {/* Segmented Pill */}
-                      <div className="mt-3 grid grid-cols-2 rounded-[8px] bg-white/8 p-0.5 text-[12px]">
+                      <div className="mt-2.5 grid grid-cols-2 rounded-[8px] bg-white/8 p-0.5 text-[12px]">
                         <span className="rounded-[6px] bg-white/16 py-1 text-center font-medium text-white">
                           All tools
                         </span>
-                        <span className="py-1 text-center text-[#a4a6ae]">
-                          Edited 3
+                        <span className="py-1 text-center text-[#a4a6ae] tabular-nums">
+                          Edited {editedCount || 3}
                         </span>
                       </div>
 
+                      {/* Calibrated Exposure Tick Ruler */}
+                      <div className="mt-3.5 border-t border-white/10 pt-3">
+                        <div className="flex items-center justify-between text-[12px]">
+                          <span className="font-medium text-[#f2f2f0]">Exposure</span>
+                          <span className="font-mono text-[12px] text-[#f1c24c] tabular-nums">
+                            {exposure >= 0 ? `+${exposure.toFixed(2)}` : exposure.toFixed(2)} EV
+                          </span>
+                        </div>
+                        <div className="mt-1.5 flex h-3.5 items-end justify-between px-0.5" aria-hidden="true">
+                          {Array.from({ length: 19 }).map((_, idx) => {
+                            const center = idx === 9;
+                            const major = idx % 3 === 0;
+                            return (
+                              <span
+                                key={idx}
+                                className="w-px"
+                                style={{
+                                  height: center ? "13px" : major ? "9px" : "5px",
+                                  backgroundColor: center ? "#f1c24c" : "rgba(255,255,255,0.28)",
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="range"
+                          min={-2.5}
+                          max={2.5}
+                          step={0.25}
+                          value={exposure}
+                          aria-label="Adjust exposure EV"
+                          onChange={(e) => setExposure(Number(e.target.value))}
+                          className="mt-1 w-full cursor-pointer accent-[#f1c24c]"
+                        />
+                        <div className="flex justify-between font-mono text-[11px] text-[#a4a6ae] tabular-nums">
+                          <span>−5</span>
+                          <span>0</span>
+                          <span>+5</span>
+                        </div>
+                      </div>
+
                       {/* Light Sliders */}
-                      <div className="mt-4 space-y-2.5 text-[12px]">
+                      <div className="mt-3 space-y-2 text-[12px]">
                         {[
                           { label: "Contrast", val: contrast, set: setContrast },
                           { label: "Highlights", val: highlights, set: setHighlights },
                           { label: "Shadows", val: shadows, set: setShadows },
+                          { label: "Whites", val: whites, set: setWhites },
+                          { label: "Blacks", val: blacks, set: setBlacks },
                         ].map((ctrl) => (
                           <div key={ctrl.label}>
-                            <div className="mb-1 flex justify-between text-[#d5d6dc]">
+                            <div className="mb-0.5 flex justify-between text-[#d5d6dc]">
                               <span>{ctrl.label}</span>
                               <span className="font-mono tabular-nums">
                                 {ctrl.val}
@@ -368,14 +486,14 @@ export function WorkflowStage() {
                               value={ctrl.val}
                               aria-label={ctrl.label}
                               onChange={(e) => ctrl.set(Number(e.target.value))}
-                              className="w-full accent-[#f2f2f0]"
+                              className="w-full cursor-pointer accent-[#f2f2f0]"
                             />
                           </div>
                         ))}
                       </div>
 
                       {/* Tool Rows */}
-                      <div className="mt-4 space-y-2 border-t border-white/10 pt-3 text-[12.5px]">
+                      <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2.5 text-[12px]">
                         <div className="flex justify-between">
                           <span>Curve</span>
                           <span className="text-[#a4a6ae]">Linear</span>
@@ -392,16 +510,28 @@ export function WorkflowStage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-[12px]">
-                      <span className="liquid-glass-pill rounded-[7px] py-1.5 text-center">
-                        Compare to Auto
-                      </span>
                       <button
                         type="button"
-                        onClick={() => {
-                          setContrast(0);
-                          setHighlights(0);
-                          setShadows(0);
+                        onPointerDown={() => setCompareAuto(true)}
+                        onPointerUp={() => setCompareAuto(false)}
+                        onPointerLeave={() => setCompareAuto(false)}
+                        onPointerCancel={() => setCompareAuto(false)}
+                        onKeyDown={(e) => {
+                          if (e.key === " " || e.key === "Enter") {
+                            e.preventDefault();
+                            setCompareAuto((v) => !v);
+                          }
                         }}
+                        aria-pressed={compareAuto}
+                        className={`rounded-[7px] py-1.5 text-center transition-colors ${
+                          compareAuto ? "btn-amber" : "liquid-glass-pill text-[#f2f2f0]"
+                        }`}
+                      >
+                        {compareAuto ? "Showing Auto" : "Compare to Auto"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetAdjustments}
                         className="rounded-[7px] bg-white/10 py-1.5 text-center hover:bg-white/16"
                       >
                         Reset
@@ -426,6 +556,7 @@ export function WorkflowStage() {
                           <img
                             src={p.src}
                             alt=""
+                            loading="lazy"
                             className="aspect-[3/2] w-full rounded-[4px] object-cover"
                           />
                           <div className="mt-1.5 font-mono text-[11px] text-[#a4a6ae]">

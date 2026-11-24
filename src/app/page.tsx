@@ -5,6 +5,7 @@ import { HeroEnlarger } from "@/components/HeroEnlarger";
 import { Navigation } from "@/components/Navigation";
 import { OpticalPipeline } from "@/components/OpticalPipeline";
 import { PolarityShell } from "@/components/PolarityShell";
+import { ScrollProgressRail } from "@/components/ScrollProgressRail";
 import { StockGallery } from "@/components/StockGallery";
 import { WorkflowStage } from "@/components/WorkflowStage";
 
@@ -12,6 +13,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#141518] text-[#f2f2f0]">
       <Navigation />
+      <ScrollProgressRail />
       <main>
         <PolarityShell>
           <HeroEnlarger />

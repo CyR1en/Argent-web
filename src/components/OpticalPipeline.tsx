@@ -52,6 +52,33 @@ const STAGES: PipelineStage[] = [
   },
 ];
 
+const STAGE_HISTOGRAMS = [
+  // Stage 0: Scene-linear RAW (wide, gentle neutral dynamic spread)
+  {
+    b: "M0,54 L0,36 C28,32 62,28 96,29 C130,30 162,26 200,44 L200,54 Z",
+    g: "M0,54 L0,38 C32,33 66,30 100,31 C134,32 166,28 200,46 L200,54 Z",
+    r: "M0,54 L0,40 C34,34 68,31 104,32 C138,33 170,30 200,47 L200,54 Z",
+  },
+  // Stage 1: Colour negative & orange mask compression (mid-right warm cluster)
+  {
+    b: "M0,54 L0,48 C36,46 68,38 96,24 C122,12 152,22 180,44 L200,52 L200,54 Z",
+    g: "M0,54 L0,46 C40,42 74,26 112,18 C144,12 168,26 190,46 L200,52 L200,54 Z",
+    r: "M0,54 L0,44 C48,38 90,14 134,12 C164,10 184,26 200,46 L200,54 Z",
+  },
+  // Stage 2: 3200 K enlarger onto paper (rich dual-lobe balanced print)
+  {
+    b: "M0,54 L0,30 C25,18 45,42 75,38 C110,33 135,12 165,16 C182,18 192,38 200,48 L200,54 Z",
+    g: "M0,54 L0,40 C30,28 58,20 92,26 C128,32 150,8 178,24 C190,32 195,44 200,50 L200,54 Z",
+    r: "M0,54 L0,44 C28,38 52,18 85,22 C118,26 142,20 172,14 C186,11 194,35 200,50 L200,54 Z",
+  },
+  // Stage 3: Night tungsten halation (deep left shadow anchor + right specular spike)
+  {
+    b: "M0,54 L0,14 C18,10 42,26 78,42 C118,48 158,46 186,28 C194,22 198,38 200,50 L200,54 Z",
+    g: "M0,54 L0,22 C24,18 52,32 88,44 C126,48 164,42 186,24 C194,18 198,38 200,50 L200,54 Z",
+    r: "M0,54 L0,28 C28,24 58,36 96,44 C132,46 164,28 184,12 C192,10 197,32 200,48 L200,54 Z",
+  },
+];
+
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
@@ -133,6 +160,7 @@ export function OpticalPipeline() {
 
   const stageInfo = STAGES[activeStage];
   const displayPlate = activeStage === 3 ? night : ridge;
+  const activeHist = STAGE_HISTOGRAMS[activeStage] ?? STAGE_HISTOGRAMS[2];
 
   const curveGeometry = useMemo(() => {
     const { logH, r, g, b } = portra400.curves;
@@ -200,6 +228,7 @@ export function OpticalPipeline() {
                   <img
                     src={ridge.src}
                     alt=""
+                    loading="lazy"
                     className="h-full w-full object-cover"
                     style={{
                       filter:
@@ -264,16 +293,19 @@ export function OpticalPipeline() {
                     aria-hidden="true"
                   >
                     <path
-                      d="M0,54 L0,30 C25,18 45,42 75,38 C110,33 135,12 165,16 C182,18 192,38 200,48 L200,54 Z"
+                      d={activeHist.b}
                       fill="rgba(91, 155, 255, 0.45)"
+                      className="transition-all duration-500 ease-out"
                     />
                     <path
-                      d="M0,54 L0,40 C30,28 58,20 92,26 C128,32 150,8 178,24 C190,32 195,44 200,50 L200,54 Z"
+                      d={activeHist.g}
                       fill="rgba(82, 201, 125, 0.42)"
+                      className="transition-all duration-500 ease-out"
                     />
                     <path
-                      d="M0,54 L0,44 C28,38 52,18 85,22 C118,26 142,20 172,14 C186,11 194,35 200,50 L200,54 Z"
+                      d={activeHist.r}
                       fill="rgba(235, 87, 87, 0.42)"
+                      className="transition-all duration-500 ease-out"
                     />
                   </svg>
                 </div>

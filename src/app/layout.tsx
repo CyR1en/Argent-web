@@ -1,15 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Bodoni_Moda, Fragment_Mono } from "next/font/google";
+import { Fragment_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
-
-const bodoniModa = Bodoni_Moda({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-bodoni",
-  display: "swap",
-});
 
 const hankenGrotesk = localFont({
   src: "./fonts/HankenGrotesk-Variable.ttf",
@@ -34,7 +26,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Argent — Raw files, developed as film.",
   description:
-    "Native macOS darkroom for Sony a7 IV RAW files. Modelled colour negative and optical print across 14 Kodak, Fujifilm, and tungsten emulsions on Apple silicon.",
+    "Native macOS 27 darkroom for Sony a7 IV RAW files. Modelled colour negative and optical print across 14 Kodak, Fujifilm, and tungsten emulsions on Apple silicon.",
   openGraph: {
     title: "Argent — Raw files, developed as film.",
     description:
@@ -58,8 +50,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0d10",
-  colorScheme: "dark light",
+  themeColor: "#141518",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -70,9 +62,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bodoniModa.variable} ${hankenGrotesk.variable} ${fragmentMono.variable}`}
+      className={`${hankenGrotesk.variable} ${fragmentMono.variable}`}
     >
-      <body className="antialiased selection:bg-[#b45a26] selection:text-[#f7f4ee]">
+      <body className="antialiased selection:bg-[#f1c24c] selection:text-[#141518]">
         {children}
       </body>
     </html>

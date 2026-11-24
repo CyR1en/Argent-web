@@ -10,26 +10,18 @@ import { WorkflowStage } from "@/components/WorkflowStage";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#141518] text-[#f2f2f0]">
       <Navigation />
       <main>
-        <PolarityShell
-          darkActs={
-            <>
-              <HeroEnlarger />
-              <OpticalPipeline />
-            </>
-          }
-          lightActs={
-            <>
-              <StockGallery />
-              <WorkflowStage />
-              <DownloadFolio />
-              <Footer />
-            </>
-          }
-        />
+        <PolarityShell>
+          <HeroEnlarger />
+          <OpticalPipeline />
+          <StockGallery />
+          <WorkflowStage />
+          <DownloadFolio />
+        </PolarityShell>
       </main>
+      <Footer />
     </div>
   );
 }

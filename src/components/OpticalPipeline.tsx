@@ -62,8 +62,8 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
 }
 
 /**
- * Sticky scroll-driven optical bench (Act II) walking the visitor through Argent's real 4-stage
- * physical pipeline while keeping darkroom obsidian crisp and scannable on mobile.
+ * Sticky scroll-driven Liquid Glass optical bench (Act II) walking through Argent's
+ * 4 physical stages with Argent's live RGB area histogram and Status M curve readout.
  */
 export function OpticalPipeline() {
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -74,8 +74,8 @@ export function OpticalPipeline() {
     () => STOCKS.find((s) => s.id === "kodak-portra-400") ?? STOCKS[0],
     []
   );
-  const alpine = PLATES[0];
-  const night = PLATES[1];
+  const ridge = PLATES[0];
+  const night = PLATES[2];
 
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -125,19 +125,19 @@ export function OpticalPipeline() {
     window.scrollTo({ top: top + (idx / 3) * totalScroll, behavior: "smooth" });
   };
 
-  // Compute physical optical layer weights from scroll progress (0..1)
-  const negWeight = smoothstep(0.14, 0.38, progress) * (1 - smoothstep(0.52, 0.72, progress));
+  const negWeight =
+    smoothstep(0.14, 0.38, progress) * (1 - smoothstep(0.52, 0.72, progress));
   const printWeight = smoothstep(0.48, 0.74, progress);
   const grainWeight = smoothstep(0.70, 0.94, progress);
-  const curveDraw = clamp(0.15 + progress * 0.85, 0.15, 1);
+  const curveDraw = clamp(0.18 + progress * 0.82, 0.18, 1);
 
   const stageInfo = STAGES[activeStage];
+  const displayPlate = activeStage === 3 ? night : ridge;
 
-  // Build SVG Status M curve path from real Portra 400 data
   const curveGeometry = useMemo(() => {
     const { logH, r, g, b } = portra400.curves;
-    const w = 320;
-    const h = 92;
+    const w = 280;
+    const h = 68;
     const minX = logH[0];
     const maxX = logH[logH.length - 1];
     const minY = 0.15;
@@ -157,28 +157,27 @@ export function OpticalPipeline() {
     <section
       id="optical-model"
       ref={trackRef}
-      className="relative bg-[#0c0d10] text-[#edeae3] lg:min-h-[300vh]"
+      className="relative border-t border-white/10 bg-[#141518] text-[#f2f2f0] lg:min-h-[280vh]"
     >
-      <div className="mx-auto max-w-[1280px] px-5 py-20 sm:px-8 lg:sticky lg:top-14 lg:flex lg:min-h-[calc(100vh-56px)] lg:items-center lg:py-10">
+      <div className="mx-auto max-w-[1220px] px-4 py-20 sm:px-8 lg:sticky lg:top-16 lg:flex lg:min-h-[calc(100vh-64px)] lg:items-center lg:py-8">
         <div className="grid w-full grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12">
-          {/* Left Sticky Optical Stage */}
+          {/* Left Sticky Liquid Glass Optical Bench */}
           <div className="lg:col-span-7">
-            <div className="overflow-hidden rounded-[8px] border border-white/10 bg-[#14161b] shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
-              {/* Top bench readout strip */}
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5 font-mono text-[11px] text-[#a9a49b]">
-                <span className="tabular-nums text-[#e3a25a]">
-                  {stageInfo.stopLabel} · {stageInfo.title.toUpperCase()}
+            <div className="liquid-glass-panel rounded-[18px] p-4">
+              {/* Top Bench Readout */}
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 font-mono text-[11.5px] text-[#a4a6ae]">
+                <span className="tabular-nums text-[#f1c24c]">
+                  {stageInfo.stopLabel} · {stageInfo.title}
                 </span>
                 <span className="tabular-nums">
                   {stageInfo.constantLabel}: {stageInfo.constantValue}
                 </span>
               </div>
 
-              {/* Morphing Specimen Plate */}
-              <div className="relative aspect-[3/2] w-full overflow-hidden bg-[#0a0b0e]">
-                {/* Base Neutral Scene-Linear RAW */}
+              {/* Morphing Specimen Frame */}
+              <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[12px] bg-[#0e0f12]">
                 <img
-                  src={activeStage === 3 ? night.src : alpine.src}
+                  src={displayPlate.src}
                   alt={`Optical bench simulation at stage ${stageInfo.title}`}
                   className="h-full w-full object-cover transition-all duration-300"
                   style={{
@@ -192,14 +191,14 @@ export function OpticalPipeline() {
                   }}
                 />
 
-                {/* Stage 2: Negative Dye + C-41 Orange Mask Crossfade */}
+                {/* Stage 2: C-41 Negative Dye & Orange Mask */}
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0"
                   style={{ opacity: negWeight }}
                 >
                   <img
-                    src={alpine.src}
+                    src={ridge.src}
                     alt=""
                     className="h-full w-full object-cover"
                     style={{
@@ -216,19 +215,20 @@ export function OpticalPipeline() {
                   />
                 </div>
 
-                {/* Stage 3: Warm 3200 K Enlarger Exposure Sweep */}
+                {/* Stage 3: 3200 K Enlarger Sweep */}
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0"
                   style={{
-                    opacity: Math.sin(clamp((progress - 0.35) / 0.35, 0, 1) * Math.PI) * 0.55,
+                    opacity:
+                      Math.sin(clamp((progress - 0.35) / 0.35, 0, 1) * Math.PI) * 0.55,
                     background:
-                      "radial-gradient(ellipse 75% 75% at 50% 45%, rgba(227, 162, 90, 0.42), rgba(180, 90, 38, 0.08) 70%, transparent 100%)",
+                      "radial-gradient(ellipse 75% 75% at 50% 45%, rgba(241, 194, 76, 0.40), rgba(180, 90, 38, 0.08) 70%, transparent 100%)",
                     mixBlendMode: "screen",
                   }}
                 />
 
-                {/* Stage 4: Optical Grain + Base Halation */}
+                {/* Stage 4: Optical Grain + Base Reflection Halation */}
                 <div
                   aria-hidden="true"
                   className="optical-grain-layer pointer-events-none absolute inset-0"
@@ -240,7 +240,7 @@ export function OpticalPipeline() {
                   style={{
                     opacity: grainWeight * 0.78,
                     mixBlendMode: "screen",
-                    backgroundImage: (activeStage === 3 ? night : alpine).halationFocus
+                    backgroundImage: displayPlate.halationFocus
                       .map(
                         (pt) =>
                           `radial-gradient(circle at ${pt.xPct}% ${pt.yPct}%, rgba(235, 58, 28, 0.62) 0%, rgba(210, 44, 24, 0.20) 11%, rgba(180, 32, 16, 0) 25%)`
@@ -250,28 +250,51 @@ export function OpticalPipeline() {
                 />
               </div>
 
-              {/* Real Portra 400 Status M Sensitometry Trace Footer */}
-              <div className="grid grid-cols-1 items-center gap-4 border-t border-white/10 bg-[#101217] px-4 py-3.5 sm:grid-cols-12">
+              {/* Bottom Telemetry: RGB Area Histogram + Status M Curve Trace */}
+              <div className="mt-3.5 grid grid-cols-1 items-center gap-4 border-t border-white/10 pt-3.5 sm:grid-cols-12">
+                {/* Argent-style RGB Area Histogram */}
                 <div className="sm:col-span-5">
-                  <div className="font-mono text-[11px] text-[#edeae3]">
-                    Portra 400 · Status M Density
+                  <div className="mb-1.5 flex items-center justify-between font-mono text-[11px] text-[#a4a6ae]">
+                    <span>RGB Response</span>
+                    <span className="text-[#f1c24c]">{stageInfo.stopLabel}</span>
                   </div>
-                  <div className="mt-0.5 font-mono text-[11px] text-[#a9a49b]">
-                    Datasheet E-4050 · 36-point unmixing fit
-                  </div>
+                  <svg
+                    viewBox="0 0 200 54"
+                    className="h-[46px] w-full rounded bg-black/35"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0,54 L0,30 C25,18 45,42 75,38 C110,33 135,12 165,16 C182,18 192,38 200,48 L200,54 Z"
+                      fill="rgba(91, 155, 255, 0.45)"
+                    />
+                    <path
+                      d="M0,54 L0,40 C30,28 58,20 92,26 C128,32 150,8 178,24 C190,32 195,44 200,50 L200,54 Z"
+                      fill="rgba(82, 201, 125, 0.42)"
+                    />
+                    <path
+                      d="M0,54 L0,44 C28,38 52,18 85,22 C118,26 142,20 172,14 C186,11 194,35 200,50 L200,54 Z"
+                      fill="rgba(235, 87, 87, 0.42)"
+                    />
+                  </svg>
                 </div>
+
+                {/* Real Portra 400 Status M Curve Trace */}
                 <div className="sm:col-span-7">
+                  <div className="mb-1.5 flex items-center justify-between font-mono text-[11px] text-[#a4a6ae]">
+                    <span>Portra 400 · Status M</span>
+                    <span>E-4050</span>
+                  </div>
                   <svg
                     viewBox={`0 0 ${curveGeometry.w} ${curveGeometry.h}`}
-                    className="h-[58px] w-full overflow-visible"
-                    aria-label="Portra 400 Status M red, green, and blue sensitometric curves"
+                    className="h-[46px] w-full overflow-visible"
+                    aria-label="Portra 400 Status M sensitometric curves"
                   >
                     <line
                       x1="0"
                       y1={curveGeometry.h}
                       x2={curveGeometry.w}
                       y2={curveGeometry.h}
-                      stroke="rgba(237,234,227,0.16)"
+                      stroke="rgba(255,255,255,0.14)"
                     />
                     <clipPath id="pipeline-curve-clip">
                       <rect
@@ -285,20 +308,20 @@ export function OpticalPipeline() {
                       <path
                         d={curveGeometry.bPath}
                         fill="none"
-                        stroke="#5B95E5"
-                        strokeWidth="1.7"
+                        stroke="#5B9BFF"
+                        strokeWidth="1.8"
                       />
                       <path
                         d={curveGeometry.gPath}
                         fill="none"
-                        stroke="#5BB97E"
-                        strokeWidth="1.7"
+                        stroke="#52C97D"
+                        strokeWidth="1.8"
                       />
                       <path
                         d={curveGeometry.rPath}
                         fill="none"
-                        stroke="#E06452"
-                        strokeWidth="1.8"
+                        stroke="#EB5757"
+                        strokeWidth="1.9"
                       />
                     </g>
                   </svg>
@@ -307,13 +330,13 @@ export function OpticalPipeline() {
             </div>
           </div>
 
-          {/* Right Scroll Chapters + Clickable Exposure Rail */}
+          {/* Right Scroll Chapters */}
           <div className="lg:col-span-5">
-            <h2 className="font-display text-[clamp(2rem,3.4vw,2.9rem)] font-normal leading-[1.06] tracking-[-0.025em] text-[#edeae3]">
+            <h2 className="text-[clamp(2rem,3.6vw,2.85rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-[#f2f2f0]">
               Film physics, never a LUT preset.
             </h2>
 
-            <div className="mt-8 space-y-3">
+            <div className="mt-7 space-y-3">
               {STAGES.map((stage, index) => {
                 const isActive = index === activeStage;
                 return (
@@ -321,21 +344,21 @@ export function OpticalPipeline() {
                     key={stage.id}
                     type="button"
                     onClick={() => jumpToStage(index)}
-                    className={`w-full rounded-[8px] border px-4 py-4 text-left transition-colors duration-200 ${
+                    className={`w-full rounded-[14px] p-4 text-left transition-all duration-200 ${
                       isActive
-                        ? "border-[#e3a25a]/55 bg-[#171a21]"
-                        : "border-white/8 bg-transparent opacity-65 hover:border-white/20 hover:opacity-95"
+                        ? "liquid-glass-panel ring-1 ring-[#e5ba54]/65"
+                        : "border border-white/10 bg-white/[0.02] opacity-70 hover:border-white/20 hover:opacity-95"
                     }`}
                   >
                     <div className="flex items-baseline justify-between gap-3">
-                      <span className="font-display text-[20px] font-normal text-[#edeae3]">
+                      <span className="text-[17px] font-semibold text-[#f2f2f0]">
                         {stage.title}
                       </span>
-                      <span className="font-mono text-[11.5px] tabular-nums text-[#e3a25a]">
+                      <span className="font-mono text-[11.5px] tabular-nums text-[#f1c24c]">
                         {stage.stopLabel}
                       </span>
                     </div>
-                    <p className="mt-2 text-[14px] leading-[1.55] text-[#a9a49b]">
+                    <p className="mt-1.5 text-[13.5px] leading-[1.55] text-[#a4a6ae]">
                       {stage.summary}
                     </p>
                   </button>

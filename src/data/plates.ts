@@ -1,5 +1,6 @@
 export interface SpecimenPlate {
   id: string;
+  frameNum: string;
   label: string;
   location: string;
   src: string;
@@ -9,7 +10,20 @@ export interface SpecimenPlate {
 
 export const PLATES: SpecimenPlate[] = [
   {
+    id: "ridge",
+    frameNum: "01",
+    label: "Foothills",
+    location: "Sandstone flatirons, afternoon sun",
+    src: "/images/specimen-ridge.jpg",
+    cameraNote: "Sony a7 IV · FE 50mm · ISO 100 · f/5.6",
+    halationFocus: [
+      { xPct: 58, yPct: 38 },
+      { xPct: 44, yPct: 47 },
+    ],
+  },
+  {
     id: "alpine",
+    frameNum: "02",
     label: "Alpine",
     location: "Granite ridge, late sun",
     src: "/images/specimen-alpine.jpg",
@@ -21,6 +35,7 @@ export const PLATES: SpecimenPlate[] = [
   },
   {
     id: "night",
+    frameNum: "03",
     label: "Night",
     location: "Rain corner, 3200 K neon",
     src: "/images/specimen-night.jpg",
@@ -33,15 +48,8 @@ export const PLATES: SpecimenPlate[] = [
     ],
   },
   {
-    id: "dunes",
-    label: "Dunes",
-    location: "Atlantic dusk horizon",
-    src: "/images/specimen-dunes.jpg",
-    cameraNote: "Sony a7 IV · FE 55mm · ISO 160 · f/4",
-    halationFocus: [{ xPct: 54, yPct: 60 }],
-  },
-  {
     id: "interior",
+    frameNum: "04",
     label: "Interior",
     location: "North window plaster",
     src: "/images/specimen-interior.jpg",

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from "react";
 
 interface LatentBackdropProps {
-  /** Ref to the left typography column so the Bayer field keeps a calm, high-legibility zone around copy. */
+  /** Optional calm element ref where Bayer lattice intensity eases slightly for text legibility. */
   calmElementRef?: React.RefObject<HTMLElement | null>;
   className?: string;
 }
@@ -95,22 +95,26 @@ void main() {
   }
 
   vec2 dp = p - u_pointer.xy;
-  float r0 = 56.0 + 44.0 * u_pointer.w;
+  float r0 = 60.0 + 48.0 * u_pointer.w;
   float e = u_pointer.z * exp(-dot(dp, dp) / (r0 * r0));
   for (int i = 0; i < ${TRAIL_CAPACITY}; i++) {
     vec4 s = u_trail[i];
     if (s.w < 0.5) continue;
-    float rs = 48.0 + s.z * 38.0;
+    float rs = 50.0 + s.z * 38.0;
     vec2 d = p - s.xy;
     e += 0.42 * exp(-dot(d, d) / (rs * rs)) * exp(-s.z * 1.5);
   }
-  float el = (1.0 - exp(-1.25 * e)) * mix(0.18, 1.0, calm);
 
+  // Subtle ambient warm golden-amber corner radiance echoing Rolls view screenshot
+  vec2 corner = p - vec2(u_size.x * 0.90, u_size.y * 0.85);
+  float cornerPool = 0.34 * exp(-dot(corner, corner) / (320.0 * 320.0));
+
+  float el = (1.0 - exp(-1.25 * (e + cornerPool))) * mix(0.28, 1.0, calm);
   vec2 uv = p / max(u_size, vec2(1.0)) - 0.5;
-  float vig = smoothstep(0.2, 0.8, length(uv * vec2(1.0, 1.12)));
+  float vig = smoothstep(0.18, 0.85, length(uv * vec2(1.0, 1.1)));
   float a = clamp(el * 1.5, 0.0, 1.0);
   float c = clouds(p, t, 340.0);
-  float cov = (0.012 + 0.035 * vig + smoothstep(0.40, 0.70, c) * (0.28 + 0.10 * vig)) * calm + el * 0.52;
+  float cov = (0.015 + 0.045 * vig + smoothstep(0.38, 0.70, c) * (0.30 + 0.12 * vig)) * mix(0.35, 1.0, calm) + el * 0.52;
   cov *= u_intro;
 
   float thr = bayer8(cell);
@@ -119,8 +123,8 @@ void main() {
     return;
   }
 
-  float alpha = u_ink.w * (1.0 + 0.55 * a);
-  vec3 col = mix(u_ink.rgb, u_accent.rgb, a * 0.82);
+  float alpha = u_ink.w * (1.0 + 0.65 * a);
+  vec3 col = mix(u_ink.rgb, u_accent.rgb, a * 0.88);
   fragColor = vec4(col * alpha, alpha);
 }
 `;
@@ -138,8 +142,8 @@ function compileShader(gl: WebGL2RenderingContext, type: number, src: string): W
 }
 
 /**
- * WebGL2 port of Argent's Swift/Metal OpenRollBackdropShader (Bayer-8 ordered dithering +
- * 4-octave FBM clouds + pointer light pool and trail). Falls back cleanly to Canvas2D or static silver texture.
+ * WebGL2 port of Argent's Swift/Metal OpenRollBackdropShader tuned to match the app's
+ * dark carbon dot-matrix lattice and warm golden-amber light pool.
  */
 export function LatentBackdrop({ calmElementRef, className = "" }: LatentBackdropProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -193,7 +197,7 @@ export function LatentBackdrop({ calmElementRef, className = "" }: LatentBackdro
           const cov = 0.04 + 0.16 * field * vig;
           const thr = bayer4[(y / step) & 3][(x / step) & 3] / 16;
           if (cov > thr) {
-            ctx.fillStyle = "rgba(237, 234, 227, 0.14)";
+            ctx.fillStyle = "rgba(216, 216, 212, 0.14)";
             ctx.fillRect(x, y, 2, 2);
           }
         }
@@ -274,7 +278,12 @@ export function LatentBackdrop({ calmElementRef, className = "" }: LatentBackdro
 
     const onPointerMove = (e: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
-      if (e.clientY < rect.top || e.clientY > rect.bottom || e.clientX < rect.left || e.clientX > rect.right) {
+      if (
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom ||
+        e.clientX < rect.left ||
+        e.clientX > rect.right
+      ) {
         pointer.presence = 0;
         return;
       }
@@ -315,7 +324,10 @@ export function LatentBackdrop({ calmElementRef, className = "" }: LatentBackdro
 
       if (pointer.presence > 0) {
         const restSeconds = (now - pointer.lastMove) / 1000;
-        pointer.dwell = restSeconds > 0.15 ? Math.min(1, pointer.dwell + dt * 0.7) : Math.max(0, pointer.dwell - dt * 1.4);
+        pointer.dwell =
+          restSeconds > 0.15
+            ? Math.min(1, pointer.dwell + dt * 0.7)
+            : Math.max(0, pointer.dwell - dt * 1.4);
       } else {
         pointer.dwell = Math.max(0, pointer.dwell - dt * 1.2);
       }
@@ -345,8 +357,8 @@ export function LatentBackdrop({ calmElementRef, className = "" }: LatentBackdro
       gl.uniform4f(uColumn, calm.rect[0], calm.rect[1], calm.rect[2], calm.rect[3]);
       gl.uniform1f(uFalloff, calm.falloff);
       gl.uniform4f(uPointer, pointer.x, pointer.y, pointer.presence, pointer.dwell);
-      gl.uniform4f(uInk, 237 / 255, 234 / 255, 227 / 255, 0.17);
-      gl.uniform4f(uAccent, 227 / 255, 162 / 255, 90 / 255, 1.0);
+      gl.uniform4f(uInk, 216 / 255, 216 / 255, 212 / 255, 0.15);
+      gl.uniform4f(uAccent, 229 / 255, 186 / 255, 84 / 255, 1.0);
       gl.uniform1f(uIntro, easedIntro);
       gl.uniform4fv(uTrail, trailFlat);
 

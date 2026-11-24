@@ -6,60 +6,52 @@ import { ArgentMark } from "./ArgentMark";
 const RELEASE_URL = "https://github.com/CyR1en/Argent/releases/tag/nightly";
 
 /**
- * Minimal top bar adapting seamlessly across the scroll polarity transition (--ground / --ink).
+ * Floating macOS 27 Liquid Glass capsule header mirroring Argent's top toolbar chrome.
  */
 export function Navigation() {
   return (
-    <header
-      className="sticky top-0 z-40 border-b backdrop-blur-md transition-colors duration-200"
-      style={{
-        backgroundColor: "color-mix(in srgb, var(--ground) 84%, transparent)",
-        borderColor: "var(--hairline)",
-        color: "var(--ink)",
-      }}
-    >
-      <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between px-5 sm:px-8">
+    <header className="pointer-events-none sticky top-3 z-40 px-4 sm:px-6">
+      <div className="liquid-glass-dock pointer-events-auto mx-auto flex h-12 max-w-[1080px] items-center justify-between rounded-full px-3.5 sm:px-5">
         <a
           href="#top"
-          className="inline-flex items-center gap-2.5 rounded-md py-1 focus-visible:outline-2"
+          className="inline-flex items-center gap-2.5 rounded-full py-1 pr-2 text-[#f2f2f0]"
         >
-          <ArgentMark size={26} />
-          <span className="font-display text-[20px] font-medium tracking-[-0.02em]">
+          <ArgentMark size={24} />
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">
             Argent
           </span>
         </a>
 
-        <nav aria-label="Primary" className="hidden items-center gap-7 text-[13.5px] sm:flex">
+        <nav
+          aria-label="Primary"
+          className="hidden items-center gap-6 text-[13px] font-medium sm:flex"
+        >
           <a
             href="#optical-model"
-            className="transition-opacity duration-150 hover:opacity-100"
-            style={{ color: "var(--ink-muted)" }}
+            className="text-[#b8bac2] transition-colors hover:text-[#f2f2f0]"
           >
             Optical Model
           </a>
           <a
             href="#stocks"
-            className="transition-opacity duration-150 hover:opacity-100"
-            style={{ color: "var(--ink-muted)" }}
+            className="text-[#b8bac2] transition-colors hover:text-[#f2f2f0]"
           >
             Stocks
           </a>
           <a
             href="#workflow"
-            className="transition-opacity duration-150 hover:opacity-100"
-            style={{ color: "var(--ink-muted)" }}
+            className="text-[#b8bac2] transition-colors hover:text-[#f2f2f0]"
           >
             Workflow
           </a>
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <a
             href="https://github.com/CyR1en/Argent"
             target="_blank"
             rel="noreferrer"
-            className="hidden text-[13px] transition-opacity hover:opacity-80 md:inline-block"
-            style={{ color: "var(--ink-muted)" }}
+            className="hidden text-[12.5px] font-medium text-[#b8bac2] transition-colors hover:text-[#f2f2f0] md:inline-block"
           >
             GitHub
           </a>
@@ -67,11 +59,7 @@ export function Navigation() {
             href={RELEASE_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-transform duration-150 active:scale-[0.98]"
-            style={{
-              backgroundColor: "var(--ink)",
-              color: "var(--ground)",
-            }}
+            className="btn-amber inline-flex h-8 items-center rounded-full px-4 text-[12.5px] font-semibold transition-transform duration-150 active:scale-[0.98]"
           >
             Download
           </a>

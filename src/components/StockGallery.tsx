@@ -3,7 +3,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { PLATES } from "@/data/plates";
 import { STOCKS, STOCK_FAMILIES, type StockFamily, type StockProfile } from "@/data/stocks";
-import { FilmFrame } from "./FilmFrame";
 
 function buildCurvePath(
   logH: number[],
@@ -28,12 +27,12 @@ function StatusMChart({ stock }: { stock: StockProfile }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  const w = 440;
-  const h = 196;
-  const padL = 34;
+  const w = 420;
+  const h = 176;
+  const padL = 32;
   const padR = 12;
-  const padT = 12;
-  const padB = 26;
+  const padT = 10;
+  const padB = 24;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
 
@@ -69,21 +68,20 @@ function StatusMChart({ stock }: { stock: StockProfile }) {
     const rect = svg.getBoundingClientRect();
     const relX = ((e.clientX - rect.left) / rect.width) * w - padL;
     const norm = Math.min(1, Math.max(0, relX / plotW));
-    const idx = Math.round(norm * (logH.length - 1));
-    setHoverIdx(idx);
+    setHoverIdx(Math.round(norm * (logH.length - 1)));
   };
 
   return (
-    <div className="rounded-[8px] border border-black/10 bg-[#f6f3ec] p-4 text-[#17181b]">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
-        <div className="font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-[#57554f]">
-          Status M Characteristic Curves
-        </div>
+    <div className="border-t border-white/10 pt-3.5 text-[#f2f2f0]">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5">
+        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[#a4a6ae]">
+          Status M Curves
+        </span>
         <div className="flex items-center gap-3 font-mono text-[11px] tabular-nums">
-          <span className="text-[#57554f]">Log H {sampleH.toFixed(2)}</span>
-          <span className="text-[#b83628]">R {sampleR.toFixed(2)}</span>
-          <span className="text-[#267349]">G {sampleG.toFixed(2)}</span>
-          <span className="text-[#275ea3]">B {sampleB.toFixed(2)}</span>
+          <span className="text-[#a4a6ae]">H {sampleH.toFixed(2)}</span>
+          <span className="text-[#EB5757]">R {sampleR.toFixed(2)}</span>
+          <span className="text-[#52C97D]">G {sampleG.toFixed(2)}</span>
+          <span className="text-[#5B9BFF]">B {sampleB.toFixed(2)}</span>
         </div>
       </div>
 
@@ -106,48 +104,40 @@ function StatusMChart({ stock }: { stock: StockProfile }) {
                   y1={y}
                   x2={plotW}
                   y2={y}
-                  stroke="rgba(23,24,27,0.08)"
+                  stroke="rgba(255,255,255,0.08)"
                   strokeDasharray={dTick === 1.0 || dTick === 2.0 ? undefined : "2 3"}
                 />
                 <text
                   x={-7}
                   y={y + 3}
                   textAnchor="end"
-                  className="fill-[#57554f] font-mono text-[9px] tabular-nums"
+                  className="fill-[#a4a6ae] font-mono text-[11px] tabular-nums"
                 >
-                  {dTick.toFixed(1)}
+                  {dTick.toFixed(0)}
                 </text>
               </g>
             );
           })}
 
-          <line
-            x1={0}
-            y1={plotH}
-            x2={plotW}
-            y2={plotH}
-            stroke="rgba(23,24,27,0.22)"
-          />
-          <line x1={0} y1={0} x2={0} y2={plotH} stroke="rgba(23,24,27,0.22)" />
+          <line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke="rgba(255,255,255,0.18)" />
+          <line x1={0} y1={0} x2={0} y2={plotH} stroke="rgba(255,255,255,0.18)" />
 
-          {/* Curves */}
-          <path d={bPath} fill="none" stroke="#275ea3" strokeWidth="2" strokeLinecap="round" />
-          <path d={gPath} fill="none" stroke="#267349" strokeWidth="2" strokeLinecap="round" />
-          <path d={rPath} fill="none" stroke="#b83628" strokeWidth="2.1" strokeLinecap="round" />
+          <path d={bPath} fill="none" stroke="#5B9BFF" strokeWidth="2.1" strokeLinecap="round" />
+          <path d={gPath} fill="none" stroke="#52C97D" strokeWidth="2.1" strokeLinecap="round" />
+          <path d={rPath} fill="none" stroke="#EB5757" strokeWidth="2.2" strokeLinecap="round" />
 
-          {/* Crosshair */}
           <line
             x1={cursorX}
             y1={0}
             x2={cursorX}
             y2={plotH}
-            stroke="rgba(23,24,27,0.35)"
+            stroke="rgba(241,194,76,0.55)"
             strokeDasharray="3 3"
           />
           {[
-            { val: sampleB, col: "#275ea3" },
-            { val: sampleG, col: "#267349" },
-            { val: sampleR, col: "#b83628" },
+            { val: sampleB, col: "#5B9BFF" },
+            { val: sampleG, col: "#52C97D" },
+            { val: sampleR, col: "#EB5757" },
           ].map((pt, i) => {
             const cy = plotH - ((pt.val - minD) / (maxD - minD)) * plotH;
             return (
@@ -155,23 +145,22 @@ function StatusMChart({ stock }: { stock: StockProfile }) {
                 key={i}
                 cx={cursorX}
                 cy={cy}
-                r={3.2}
+                r={3.4}
                 fill={pt.col}
-                stroke="#f6f3ec"
+                stroke="#101115"
                 strokeWidth="1.2"
               />
             );
           })}
 
-          {/* X axis labels */}
-          <text x={0} y={plotH + 17} className="fill-[#57554f] font-mono text-[9px] tabular-nums">
+          <text x={0} y={plotH + 17} className="fill-[#a4a6ae] font-mono text-[11px] tabular-nums">
             {minH.toFixed(1)}
           </text>
           <text
             x={plotW / 2}
             y={plotH + 17}
             textAnchor="middle"
-            className="fill-[#57554f] font-mono text-[9px]"
+            className="fill-[#a4a6ae] font-mono text-[11px]"
           >
             Log Exposure (H)
           </text>
@@ -179,7 +168,7 @@ function StatusMChart({ stock }: { stock: StockProfile }) {
             x={plotW}
             y={plotH + 17}
             textAnchor="end"
-            className="fill-[#57554f] font-mono text-[9px] tabular-nums"
+            className="fill-[#a4a6ae] font-mono text-[11px] tabular-nums"
           >
             {maxH.toFixed(1)}
           </text>
@@ -189,11 +178,15 @@ function StatusMChart({ stock }: { stock: StockProfile }) {
   );
 }
 
+/**
+ * Act III: Authentic Argent 35mm perforated contact strip + Liquid Glass Adjust & Sensitometry Inspector.
+ */
 export function StockGallery() {
   const [selectedFamily, setSelectedFamily] = useState<"All 14" | StockFamily>("All 14");
   const [selectedStockId, setSelectedStockId] = useState("kodak-portra-400");
-  const [selectedPlateId, setSelectedPlateId] = useState("interior");
+  const [selectedPlateId, setSelectedPlateId] = useState("ridge");
   const [compareRaw, setCompareRaw] = useState(false);
+  const [exposureEV, setExposureEV] = useState(0);
 
   const stripRef = useRef<HTMLDivElement | null>(null);
 
@@ -202,13 +195,10 @@ export function StockGallery() {
     return STOCKS.filter((s) => s.family === selectedFamily);
   }, [selectedFamily]);
 
-  const activeStock = useMemo(() => {
-    return (
-      visibleStocks.find((s) => s.id === selectedStockId) ??
-      visibleStocks[0] ??
-      STOCKS[2]
-    );
-  }, [visibleStocks, selectedStockId]);
+  const activeStock = useMemo(
+    () => visibleStocks.find((s) => s.id === selectedStockId) ?? visibleStocks[0] ?? STOCKS[2],
+    [visibleStocks, selectedStockId]
+  );
 
   const activePlate = useMemo(
     () => PLATES.find((p) => p.id === selectedPlateId) ?? PLATES[0],
@@ -216,9 +206,7 @@ export function StockGallery() {
   );
 
   const scrollStrip = (dir: -1 | 1) => {
-    const el = stripRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * 420, behavior: "smooth" });
+    stripRef.current?.scrollBy({ left: dir * 420, behavior: "smooth" });
   };
 
   const handleSelectStock = (stock: StockProfile) => {
@@ -228,31 +216,31 @@ export function StockGallery() {
     }
   };
 
+  // Combine stock grade filter with live Exposure EV ruler offset
+  const evBrightness = Math.pow(2, exposureEV * 0.16);
+  const activeFilter = compareRaw
+    ? "contrast(0.90) saturate(0.84) brightness(1.03)"
+    : `${activeStock.grade.filter} brightness(${evBrightness.toFixed(3)})`;
+
   return (
     <section
       id="stocks"
-      className="relative py-24 sm:py-32"
-      style={{ color: "var(--ink)" }}
+      className="relative border-t border-white/10 bg-[#141518] py-20 text-[#f2f2f0] sm:py-28"
     >
-      <div className="mx-auto max-w-[1280px] px-5 sm:px-8">
-        {/* Heading + Honest Provenance Disclosure */}
+      <div className="mx-auto max-w-[1220px] px-4 sm:px-8">
+        {/* Heading + Liquid Glass Family Filters */}
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div>
-            <h2 className="font-display text-[clamp(2.2rem,4vw,3.4rem)] font-normal leading-[1.03] tracking-[-0.028em]">
+            <h2 className="text-[clamp(2.1rem,4vw,3.2rem)] font-semibold leading-[1.06] tracking-[-0.03em]">
               Fourteen emulsions, zero scan fits.
             </h2>
-            <p
-              className="mt-4 max-w-[58ch] text-[16px] leading-[1.6]"
-              style={{ color: "var(--ink-muted)" }}
-            >
+            <p className="mt-3.5 max-w-[58ch] text-[15.5px] leading-[1.6] text-[#a4a6ae]">
               Every stock prints from published Kodak and Fujifilm datasheets
-              and explicit proxies where measurements are absent. Select a frame
-              along the 35mm contact strip to inspect its print tone, grain index,
-              and live Status M characteristic curves.
+              and explicit proxies where sheets omit data. Pick a frame on the
+              35mm roll to inspect its Status M curves and Adjust response.
             </p>
           </div>
 
-          {/* Family Filter */}
           <div
             className="flex flex-wrap items-center gap-1.5"
             role="group"
@@ -272,15 +260,11 @@ export function StockGallery() {
                         : STOCKS.find((s) => s.family === family);
                     if (first) setSelectedStockId(first.id);
                   }}
-                  className="h-8 rounded-full px-3.5 text-[12.5px] font-medium transition-colors"
-                  style={
+                  className={`h-8 rounded-full px-3.5 text-[12.5px] font-medium transition-all ${
                     active
-                      ? { backgroundColor: "var(--ink)", color: "var(--ground)" }
-                      : {
-                          border: "1px solid var(--hairline-strong)",
-                          color: "var(--ink-muted)",
-                        }
-                  }
+                      ? "btn-amber"
+                      : "liquid-glass-pill text-[#d5d6dc] hover:text-white"
+                  }`}
                 >
                   {family}
                 </button>
@@ -289,14 +273,11 @@ export function StockGallery() {
           </div>
         </div>
 
-        {/* Perforated 35mm Horizontal Contact Strip */}
+        {/* Authentic Argent 35mm Perforated Filmstrip (mirrors Screenshot 1) */}
         <div className="mt-10">
           <div className="mb-2.5 flex items-center justify-between">
-            <span
-              className="font-mono text-[11px] uppercase tracking-[0.12em] tabular-nums"
-              style={{ color: "var(--ink-muted)" }}
-            >
-              35mm Contact Strip · {visibleStocks.length}{" "}
+            <span className="font-mono text-[11.5px] tracking-[0.06em] text-[#a4a6ae] tabular-nums">
+              35mm Roll · {visibleStocks.length}{" "}
               {visibleStocks.length === 1 ? "emulsion" : "emulsions"}
             </span>
             <div className="flex items-center gap-1.5">
@@ -304,11 +285,7 @@ export function StockGallery() {
                 type="button"
                 onClick={() => scrollStrip(-1)}
                 aria-label="Scroll contact strip left"
-                className="flex h-7 w-7 items-center justify-center rounded-full border text-[13px] transition-colors hover:opacity-80"
-                style={{
-                  borderColor: "var(--hairline-strong)",
-                  color: "var(--ink)",
-                }}
+                className="liquid-glass-pill flex h-7 w-7 items-center justify-center rounded-full text-[13px] text-[#f2f2f0]"
               >
                 ←
               </button>
@@ -316,11 +293,7 @@ export function StockGallery() {
                 type="button"
                 onClick={() => scrollStrip(1)}
                 aria-label="Scroll contact strip right"
-                className="flex h-7 w-7 items-center justify-center rounded-full border text-[13px] transition-colors hover:opacity-80"
-                style={{
-                  borderColor: "var(--hairline-strong)",
-                  color: "var(--ink)",
-                }}
+                className="liquid-glass-pill flex h-7 w-7 items-center justify-center rounded-full text-[13px] text-[#f2f2f0]"
               >
                 →
               </button>
@@ -329,47 +302,46 @@ export function StockGallery() {
 
           <div
             ref={stripRef}
-            className="no-scrollbar overflow-x-auto rounded-[6px] bg-[#0b0c10] shadow-[0_18px_46px_rgba(0,0,0,0.22)] ring-1 ring-black/15"
+            className="no-scrollbar overflow-x-auto rounded-[10px] bg-[#0b0c0f] p-2.5 shadow-[0_20px_54px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
           >
             <div className="inline-block min-w-full">
-              <div className="film-rebate-bar h-[20px] w-full" />
-              <div className="flex items-stretch gap-2 bg-[#0b0c10] px-3 py-1">
+              {/* Top Edge Print */}
+              <div className="mb-1 flex items-center justify-between px-2 font-mono text-[11px] tracking-[0.14em] text-[#e5ba54]/80">
+                <span>ARGENT ◄ DATASHEET ROLL ► {activeStock.edgeCode}</span>
+                <span>{visibleStocks.length} EXP</span>
+              </div>
+              <div className="film-rebate-dark h-[12px] w-full" />
+
+              {/* Frames Row */}
+              <div className="flex items-stretch gap-2 py-2">
                 {visibleStocks.map((s, idx) => {
                   const selected = s.id === activeStock.id;
-                  const framePlate =
-                    s.family === "Tungsten & Cinema" ? PLATES[1] : PLATES[0];
+                  const thumbPlate =
+                    s.family === "Tungsten & Cinema" ? PLATES[2] : PLATES[0];
                   return (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => handleSelectStock(s)}
                       aria-pressed={selected}
-                      className={`group relative w-[166px] flex-none text-left transition-transform duration-150 ${
+                      className={`group relative w-[164px] flex-none overflow-hidden rounded-[3px] text-left transition-all duration-150 ${
                         selected
-                          ? "ring-2 ring-[#e3a25a]"
+                          ? "ring-2 ring-[#f1c24c]"
                           : "opacity-80 hover:opacity-100"
                       }`}
                     >
-                      <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[2px] bg-[#16181f]">
+                      <div className="relative aspect-[3/2] w-full overflow-hidden bg-[#15171c]">
                         <img
-                          src={framePlate.src}
+                          src={thumbPlate.src}
                           alt={s.displayName}
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                           style={{ filter: s.grade.filter }}
                         />
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-0"
-                          style={{
-                            backgroundColor: s.grade.warmWash,
-                            mixBlendMode: "soft-light",
-                          }}
-                        />
-                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 py-2">
-                          <span className="text-[12px] font-medium text-[#f3efe8]">
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/90 via-black/45 to-transparent px-2.5 py-1.5">
+                          <span className="text-[12px] font-medium text-[#f2f2f0]">
                             {s.displayName}
                           </span>
-                          <span className="font-mono text-[11px] tabular-nums text-[#e3a25a]">
+                          <span className="font-mono text-[11px] tabular-nums text-[#e5ba54]">
                             {idx + 1}A
                           </span>
                         </div>
@@ -378,143 +350,235 @@ export function StockGallery() {
                   );
                 })}
               </div>
-              <div className="film-rebate-bar bottom h-[20px] w-full" />
+
+              <div className="film-rebate-dark h-[12px] w-full" />
+              <div className="mt-1 flex items-center gap-6 px-2 font-mono text-[11px] text-[#e5ba54]/70 tabular-nums">
+                {visibleStocks.slice(0, 6).map((_, i) => (
+                  <span key={i}>► {i + 1} · {i + 1}A</span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Unified Archival Datasheet Plate */}
-        <div
-          className="mt-8 grid grid-cols-1 gap-8 rounded-[10px] border p-5 sm:p-8 lg:grid-cols-12"
-          style={{
-            backgroundColor: "var(--surface-elevated)",
-            borderColor: "var(--hairline)",
-          }}
-        >
-          {/* Left: Specimen Plate + Hold for Neutral RAW */}
-          <div className="lg:col-span-6">
-            <FilmFrame
-              plate={activePlate}
-              stock={activeStock}
-              compareRaw={compareRaw}
-            />
+        {/* Unified Full-Bleed Specimen + Liquid Glass Adjust/Sensitometry Panel */}
+        <div className="mt-8 grid grid-cols-1 items-start gap-7 lg:grid-cols-12">
+          {/* Left: Clean Full-Bleed Photograph with Floating Glass Pills */}
+          <div className="lg:col-span-7">
+            <div className="relative overflow-hidden rounded-[16px] bg-[#0e0f12] shadow-[0_26px_70px_rgba(0,0,0,0.58)] ring-1 ring-white/15">
+              <div className="relative aspect-[3/2] w-full overflow-hidden">
+                <img
+                  src={activePlate.src}
+                  alt={`${activePlate.label} specimen on ${
+                    compareRaw ? "Neutral RAW" : activeStock.displayName
+                  }`}
+                  className="h-full w-full object-cover transition-[filter] duration-200"
+                  style={{ filter: activeFilter }}
+                />
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {PLATES.map((p) => {
-                  const active = p.id === activePlate.id;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setSelectedPlateId(p.id)}
-                      className="h-8 rounded-md px-2.5 font-mono text-[11px] transition-colors"
-                      style={
-                        active
-                          ? { backgroundColor: "var(--ink)", color: "var(--ground)" }
-                          : {
-                              border: "1px solid var(--hairline-strong)",
-                              color: "var(--ink-muted)",
-                            }
+                {!compareRaw && (
+                  <>
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        backgroundColor: activeStock.grade.warmWash,
+                        mixBlendMode: "soft-light",
+                      }}
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        backgroundColor: activeStock.grade.shadowTint,
+                        mixBlendMode: "multiply",
+                      }}
+                    />
+                    {activeStock.grade.halationStrength > 0.02 && (
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                          opacity: Math.min(0.95, activeStock.grade.halationStrength),
+                          mixBlendMode: "screen",
+                          backgroundImage: activePlate.halationFocus
+                            .map(
+                              (pt) =>
+                                `radial-gradient(circle at ${pt.xPct}% ${pt.yPct}%, rgba(235, 58, 28, 0.58) 0%, rgba(212, 42, 22, 0.22) 10%, rgba(180, 32, 16, 0) 24%)`
+                            )
+                            .join(", "),
+                        }}
+                      />
+                    )}
+                    <div
+                      aria-hidden="true"
+                      className="optical-grain-layer absolute inset-0"
+                      style={{ opacity: activeStock.grade.grainOpacity }}
+                    />
+                  </>
+                )}
+
+                {/* Top-Left Stock Status Pill */}
+                <div className="liquid-glass-pill pointer-events-none absolute left-4 top-4 rounded-full px-3.5 py-1.5 text-[12px] font-medium text-[#f2f2f0]">
+                  {compareRaw ? "Neutral RAW" : activeStock.displayName}
+                </div>
+
+                {/* Top-Right Plate Switcher Pills */}
+                <div className="liquid-glass-dock absolute right-3.5 top-3.5 flex items-center gap-1 rounded-full p-1">
+                  {PLATES.map((p) => {
+                    const active = p.id === activePlate.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedPlateId(p.id)}
+                        className={`h-7 rounded-full px-2.5 text-[11.5px] font-medium transition-colors ${
+                          active
+                            ? "bg-[#f2f2f0] text-[#141518]"
+                            : "text-[#d5d6dc] hover:text-white"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Bottom Hold for Neutral RAW Pill */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
+                  <button
+                    type="button"
+                    onPointerDown={() => setCompareRaw(true)}
+                    onPointerUp={() => setCompareRaw(false)}
+                    onPointerLeave={() => setCompareRaw(false)}
+                    onPointerCancel={() => setCompareRaw(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === " " || e.key === "Enter") {
+                        e.preventDefault();
+                        setCompareRaw((v) => !v);
                       }
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
+                    }}
+                    aria-pressed={compareRaw}
+                    className={`pointer-events-auto rounded-full px-4 py-1.5 text-[12px] font-medium transition-all ${
+                      compareRaw
+                        ? "btn-amber"
+                        : "liquid-glass-pill text-[#f2f2f0]"
+                    }`}
+                  >
+                    {compareRaw
+                      ? "Showing Neutral RAW"
+                      : "Hold to compare Neutral RAW"}
+                  </button>
+                </div>
               </div>
-
-              <button
-                type="button"
-                onPointerDown={() => setCompareRaw(true)}
-                onPointerUp={() => setCompareRaw(false)}
-                onPointerLeave={() => setCompareRaw(false)}
-                onPointerCancel={() => setCompareRaw(false)}
-                onKeyDown={(e) => {
-                  if (e.key === " " || e.key === "Enter") {
-                    e.preventDefault();
-                    setCompareRaw((v) => !v);
-                  }
-                }}
-                aria-pressed={compareRaw}
-                className="h-8 rounded-md border px-3 font-mono text-[11px] transition-colors"
-                style={
-                  compareRaw
-                    ? {
-                        backgroundColor: "#b45a26",
-                        borderColor: "#b45a26",
-                        color: "#f7f4ee",
-                      }
-                    : {
-                        borderColor: "var(--hairline-strong)",
-                        color: "var(--ink)",
-                      }
-                }
-              >
-                {compareRaw ? "Showing Neutral RAW" : "Hold to compare Neutral RAW"}
-              </button>
             </div>
           </div>
 
-          {/* Right: Datasheet Header, Live Status M Chart, & Ledger */}
-          <div className="flex flex-col justify-between gap-5 lg:col-span-6">
+          {/* Right: Translucent Liquid Glass Adjust & Sensitometry Inspector */}
+          <div className="liquid-glass-panel flex flex-col gap-4 rounded-[16px] p-5 lg:col-span-5">
             <div>
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <h3 className="font-display text-[32px] font-normal leading-tight tracking-[-0.02em]">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-[#f2f2f0]">
                   {activeStock.displayName}
                 </h3>
-                <span className="rounded-full border border-black/15 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[#57554f]">
+                <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[#f1c24c]">
                   {activeStock.status}
                 </span>
               </div>
-
-              <p
-                className="mt-2.5 text-[15px] leading-[1.58]"
-                style={{ color: "var(--ink-muted)" }}
-              >
+              <p className="mt-2 text-[13.5px] leading-[1.55] text-[#a4a6ae]">
                 {activeStock.summary}
               </p>
             </div>
 
+            {/* Interactive Real Status M Characteristic Curves */}
             <StatusMChart stock={activeStock} />
 
-            {/* Clean Hairline Spec Ledger */}
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-black/10 pt-4 text-[13px] sm:grid-cols-3">
+            {/* Argent-style Exposure Ruler (-5 to +5 EV) */}
+            <div className="border-t border-white/10 pt-3.5">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="font-medium text-[#f2f2f0]">Exposure</span>
+                <span className="font-mono text-[12.5px] tabular-nums text-[#f1c24c]">
+                  {exposureEV >= 0 ? `+${exposureEV.toFixed(2)}` : exposureEV.toFixed(2)} EV
+                </span>
+              </div>
+
+              <div className="relative mt-2.5">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none flex h-4 items-end justify-between px-1"
+                >
+                  {Array.from({ length: 21 }).map((_, idx) => {
+                    const isCenter = idx === 10;
+                    const isMajor = idx % 5 === 0;
+                    return (
+                      <span
+                        key={idx}
+                        className="w-px"
+                        style={{
+                          height: isCenter ? "14px" : isMajor ? "10px" : "6px",
+                          backgroundColor: isCenter
+                            ? "#f1c24c"
+                            : "rgba(255,255,255,0.28)",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <input
+                  type="range"
+                  min={-2.5}
+                  max={2.5}
+                  step={0.25}
+                  value={exposureEV}
+                  aria-label="Print exposure compensation in EV"
+                  onChange={(e) => setExposureEV(Number(e.target.value))}
+                  className="mt-1 w-full cursor-pointer accent-[#f1c24c]"
+                />
+                <div className="mt-0.5 flex justify-between font-mono text-[11px] text-[#a4a6ae] tabular-nums">
+                  <span>−5</span>
+                  <span>0</span>
+                  <span>+5</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Spec Ledger */}
+            <dl className="grid grid-cols-2 gap-x-5 gap-y-3 border-t border-white/10 pt-3.5 text-[12.5px] sm:grid-cols-3">
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#57554f]">
+                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#a4a6ae]">
                   Modelled Film
                 </dt>
-                <dd className="mt-0.5 font-medium">{activeStock.modelledFilm}</dd>
+                <dd className="mt-0.5 font-medium text-[#f2f2f0]">
+                  {activeStock.modelledFilm}
+                </dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#57554f]">
+                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#a4a6ae]">
                   Box Speed
                 </dt>
-                <dd className="mt-0.5 font-mono tabular-nums">
+                <dd className="mt-0.5 font-mono text-[#f2f2f0] tabular-nums">
                   ISO {activeStock.boxSpeed}
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#57554f]">
-                  Paper &amp; Stage
+                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#a4a6ae]">
+                  Paper
                 </dt>
-                <dd className="mt-0.5">
-                  {activeStock.paper}
-                </dd>
+                <dd className="mt-0.5 text-[#f2f2f0]">{activeStock.paper}</dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#57554f]">
+                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#a4a6ae]">
                   Datasheet
                 </dt>
-                <dd className="mt-0.5 font-mono text-[12px] tabular-nums">
+                <dd className="mt-0.5 font-mono text-[#f2f2f0] tabular-nums">
                   {activeStock.publication}
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#57554f]">
+                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#a4a6ae]">
                   Halation
                 </dt>
-                <dd className="mt-0.5 font-mono text-[12px] tabular-nums">
+                <dd className="mt-0.5 font-mono text-[#f2f2f0] tabular-nums">
                   {activeStock.halation
                     ? `${Math.round(activeStock.halation.strength * 100)}% · ${
                         activeStock.halation.radiusMicrometres
@@ -523,10 +587,10 @@ export function StockGallery() {
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#57554f]">
-                  Print Grain Index
+                <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#a4a6ae]">
+                  Grain PGI
                 </dt>
-                <dd className="mt-0.5 font-mono text-[12px] tabular-nums">
+                <dd className="mt-0.5 font-mono text-[#f2f2f0] tabular-nums">
                   {activeStock.grain?.printGrainIndex
                     ? activeStock.grain.printGrainIndex
                         .map((v) => (v == null ? "—" : v))

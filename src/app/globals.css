@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-bodoni), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-hanken), -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono: var(--font-fragment), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  /* Scroll polarity defaults to Darkroom Obsidian (polarity = 0) */
+  --polarity: 0;
+  --ground: #0c0d10;
+  --surface: #15171c;
+  --surface-elevated: #1c1f26;
+  --ink: #edeae3;
+  --ink-muted: #a9a49b;
+  --hairline: rgba(237, 234, 227, 0.11);
+  --hairline-strong: rgba(237, 234, 227, 0.22);
+
+  /* Fixed photographic tokens */
+  --darkroom: #0c0d10;
+  --baryta: #eeeae2;
+  --mask-orange: #b45a26;
+  --amber: #e3a25a;
+  --disc-warm: #f2b27a;
+  --silver: #dedfe1;
+  --graphite-chrome: #2f3133;
+  --graphite-ws: #373a3c;
+  --graphite-surround: #2a2c2e;
+  --graphite-well: #2c2f31;
+}
+
+html {
+  background-color: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--ground);
+  color: var(--ink);
+  overflow-x: clip;
+  margin: 0;
+  transition: background-color 120ms linear, color 120ms linear;
+}
+
+::selection {
+  background: var(--mask-orange);
+  color: #f7f4ee;
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+a {
+  text-underline-offset: 4px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom darkroom/archival scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(169, 164, 155, 0.34);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(227, 162, 90, 0.6);
+}
+
+/* 35mm perforated sprocket mask matching Argent Rolls mockup */
+.film-rebate-bar {
+  background: #0b0c10;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='26'%3E%3Cpath fill-rule='evenodd' d='M0 0h22v26H0z M7 4h8a1.4 1.4 0 0 1 1.4 1.4v4.8a1.4 1.4 0 0 1-1.4 1.4H7a1.4 1.4 0 0 1-1.4-1.4V5.4A1.4 1.4 0 0 1 7 4z'/%3E%3C/svg%3E")
+    repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='26'%3E%3Cpath fill-rule='evenodd' d='M0 0h22v26H0z M7 4h8a1.4 1.4 0 0 1 1.4 1.4v4.8a1.4 1.4 0 0 1-1.4 1.4H7a1.4 1.4 0 0 1-1.4-1.4V5.4A1.4 1.4 0 0 1 7 4z'/%3E%3C/svg%3E")
+    repeat-x;
+}
+
+.film-rebate-bar.bottom {
+  transform: scaleY(-1);
+}
+
+/* Fine optical silver-halide grain overlay (SVG fractalNoise data URI) */
+.optical-grain-layer {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* Hide scrollbars on filmstrip container while keeping keyboard & button scrolling */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

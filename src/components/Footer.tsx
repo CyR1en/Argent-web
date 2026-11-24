@@ -40,10 +40,9 @@ export function Footer() {
           ColorPlus, UltraMax, and Vision3 are trademarks of Eastman Kodak
           Company. Fujifilm, Fujicolor, Pro 400H, C200, and Superia are
           trademarks of FUJIFILM Corporation. CineStill is a trademark of
-          CineStill Film. Sony and a7 IV are trademarks of Sony Group
-          Corporation. Argent is not affiliated with or endorsed by any of them;
-          a stock&apos;s name identifies which film&apos;s published datasheets
-          its model follows.
+          CineStill Film. Sony is a trademark of Sony Group Corporation. Argent
+          is not affiliated with or endorsed by any of them; a stock&apos;s name
+          identifies which film&apos;s published datasheets its model follows.
         </p>
       </div>
     </footer>

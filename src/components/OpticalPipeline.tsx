@@ -20,7 +20,7 @@ const ORANGE_MASK = "rgb(222 128 58 / 0.78)";
 const STAGES = [
   {
     title: "Scene-linear RAW",
-    summary: "Every frame opens as untouched scene-linear data, calibrated to the a7 IV's spectral sensitivity.",
+    summary: "Every frame opens as untouched scene-linear data, its metered mid-tone placed on the film's mid-gray.",
     constant: "Metered mid-gray · 11.49 / ISO lux·s",
   },
   {

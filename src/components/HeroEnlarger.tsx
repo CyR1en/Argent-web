@@ -115,7 +115,7 @@ export function HeroEnlarger({ release }: { release: StableRelease }) {
           </h1>
 
           <p className="mx-auto mt-5 max-w-[60ch] text-balance text-[16px] leading-[1.58] text-muted sm:text-[17px]">
-            Native macOS 27 darkroom for Sony a7 IV. Modelled colour negative
+            Native macOS 27 darkroom for Sony RAW. Modelled colour negative
             and optical print, rendered locally on Apple silicon Metal.
           </p>
 

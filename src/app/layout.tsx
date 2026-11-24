@@ -26,11 +26,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Argent — Raw files, developed as film.",
   description:
-    "Native macOS 27 darkroom for Sony a7 IV RAW files. Modelled colour negative and optical print across 14 Kodak, Fujifilm, and tungsten emulsions on Apple silicon.",
+    "Native macOS 27 darkroom for Sony RAW files. Modelled colour negative and optical print across 14 Kodak, Fujifilm, and tungsten emulsions on Apple silicon.",
   openGraph: {
     title: "Argent — Raw files, developed as film.",
     description:
-      "Scene-linear Sony a7 IV RAW developed through modelled colour negative and optical paper print. Open source for macOS 27 on Apple silicon.",
+      "Scene-linear Sony RAW developed through modelled colour negative and optical paper print. Open source for macOS 27 on Apple silicon.",
     images: [
       {
         url: "/images/banner.jpg",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Argent — Raw files, developed as film.",
     description:
-      "Native RAW development for Sony a7 IV. Modelled colour negative and print. Made for Mac.",
+      "Native development for Sony RAW files. Modelled colour negative and print. Made for Mac.",
     images: ["/images/banner.jpg"],
   },
 };

@@ -4,7 +4,7 @@ import { REPO_URL } from "@/lib/site";
 import { ArgentMark } from "./ArgentMark";
 import { ReleaseNote } from "./ReleaseNote";
 
-const REQUIREMENTS = ["macOS 27", "Apple silicon", "Sony a7 IV .ARW", "Apache 2.0"];
+const REQUIREMENTS = ["macOS 27", "Apple silicon", "Sony .ARW", "Apache 2.0"];
 
 /** The close: the download over the Latent image at full strength, its warm pool rising behind. */
 export function DownloadFolio({ release }: { release: StableRelease }) {

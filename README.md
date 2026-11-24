@@ -35,4 +35,4 @@ python3 scripts/extract-stocks.py --argent-dir ../Argent
 
 - Licensed under the [Apache License 2.0](LICENSE).
 - **Hanken Grotesk** (`public/fonts/HankenGrotesk-Variable.ttf`, `src/app/fonts/HankenGrotesk-Variable.ttf`) is licensed under the SIL Open Font License 1.1 ([`public/fonts/HankenGrotesk-OFL.txt`](public/fonts/HankenGrotesk-OFL.txt)).
-- **Built with DINOv3.** Kodak, Portra, Ektar, Gold, ColorPlus, UltraMax and Vision3 are trademarks of Eastman Kodak Company. Fujifilm, Fujicolor, Pro 400H, C200 and Superia are trademarks of FUJIFILM Corporation. CineStill is a trademark of CineStill Film. Sony and a7 IV are trademarks of Sony Group Corporation. Argent is not affiliated with or endorsed by any of them.
+- **Built with DINOv3.** Kodak, Portra, Ektar, Gold, ColorPlus, UltraMax and Vision3 are trademarks of Eastman Kodak Company. Fujifilm, Fujicolor, Pro 400H, C200 and Superia are trademarks of FUJIFILM Corporation. CineStill is a trademark of CineStill Film. Sony is a trademark of Sony Group Corporation. Argent is not affiliated with or endorsed by any of them.

@@ -7,7 +7,7 @@ const STEPS = [
   {
     title: "Rolls",
     keys: "⌘O",
-    copy: "Open a folder of Sony a7 IV .ARW files in place, or copy frames from a card into chronological rolls.",
+    copy: "Open a folder of Sony .ARW files in place, or copy frames from a card into chronological rolls.",
   },
   {
     title: "Adjust",

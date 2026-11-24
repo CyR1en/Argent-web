@@ -1,11 +1,13 @@
 import React from "react";
-import { REPO_URL, RELEASE_URL } from "@/lib/site";
+import type { StableRelease } from "@/lib/release";
+import { REPO_URL } from "@/lib/site";
 import { ArgentMark } from "./ArgentMark";
+import { ReleaseNote } from "./ReleaseNote";
 
 const REQUIREMENTS = ["macOS 27", "Apple silicon", "Sony a7 IV .ARW", "Apache 2.0"];
 
 /** The close: the download over the Latent image at full strength, its warm pool rising behind. */
-export function DownloadFolio() {
+export function DownloadFolio({ release }: { release: StableRelease }) {
   return (
     <section
       id="download"
@@ -25,9 +27,7 @@ export function DownloadFolio() {
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
           <a
-            href={RELEASE_URL}
-            target="_blank"
-            rel="noreferrer"
+            href={release.href}
             className="btn-amber inline-flex h-12 items-center gap-2.5 rounded-full px-7 text-[14.5px] font-semibold"
           >
             Download Argent
@@ -42,6 +42,8 @@ export function DownloadFolio() {
             Source on GitHub
           </a>
         </div>
+
+        <ReleaseNote version={release.version} className="mt-4" />
 
         <ul className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-1.5 font-mono text-[12px] text-muted">
           {REQUIREMENTS.map((item) => (

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { onScrollFrame } from "@/lib/scroll";
-import { REPO_URL, RELEASE_URL } from "@/lib/site";
+import { REPO_URL } from "@/lib/site";
 import { ArgentMark } from "./ArgentMark";
 
 const SECTIONS = [
@@ -12,7 +12,7 @@ const SECTIONS = [
 ];
 
 /** The floating Liquid Glass capsule, after Argent's toolbar. It marks the section in view. */
-export function Navigation() {
+export function Navigation({ downloadHref }: { downloadHref: string }) {
   const [current, setCurrent] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,9 +61,7 @@ export function Navigation() {
             GitHub
           </a>
           <a
-            href={RELEASE_URL}
-            target="_blank"
-            rel="noreferrer"
+            href={downloadHref}
             className="btn-amber inline-flex h-8 items-center rounded-full px-4 text-[13px] font-semibold"
           >
             Download

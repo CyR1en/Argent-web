@@ -10,21 +10,24 @@ import { ScrollThumb } from "@/components/ScrollThumb";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { StockGallery } from "@/components/StockGallery";
 import { WorkflowStage } from "@/components/WorkflowStage";
+import { latestStableRelease } from "@/lib/release";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const release = await latestStableRelease();
+
   return (
     <>
       <SmoothScroll />
       <FilmFilters />
       <LatentBackdrop />
-      <Navigation />
+      <Navigation downloadHref={release.href} />
       <div className="relative z-10">
         <main>
-          <HeroEnlarger />
+          <HeroEnlarger release={release} />
           <OpticalPipeline />
           <StockGallery />
           <WorkflowStage />
-          <DownloadFolio />
+          <DownloadFolio release={release} />
         </main>
         <Footer />
       </div>

@@ -1,9 +1,9 @@
 import React from "react";
-import { REPO_URL, RELEASE_URL } from "@/lib/site";
+import { REPO_URL, RELEASES_URL } from "@/lib/site";
 import { ArgentMark } from "./ArgentMark";
 
 const LINKS = [
-  { label: "Nightly releases", href: RELEASE_URL },
+  { label: "All releases", href: RELEASES_URL },
   { label: "Inside the film model", href: `${REPO_URL}/blob/main/bake/README.md` },
   { label: "Notices & licences", href: `${REPO_URL}/blob/main/NOTICE` },
 ];

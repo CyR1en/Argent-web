@@ -3,9 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PLATES } from "@/data/plates";
 import { STOCKS } from "@/data/stocks";
+import type { StableRelease } from "@/lib/release";
 import { clamp01, onScrollFrame } from "@/lib/scroll";
-import { RELEASE_URL } from "@/lib/site";
 import { NEUTRAL_RAW, Photo, Print } from "./Print";
+import { ReleaseNote } from "./ReleaseNote";
 
 const STOCK = STOCKS.find((stock) => stock.id === "kodak-portra-400") ?? STOCKS[0];
 const PLATE = PLATES.ridge;
@@ -21,7 +22,7 @@ const NAV_CLEARANCE = 76;
  * The opening: the headline over the Latent image and one photograph split between its neutral
  * RAW and its print. Scrolling hands the viewport from the words to the photograph.
  */
-export function HeroEnlarger() {
+export function HeroEnlarger({ release }: { release: StableRelease }) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
@@ -120,9 +121,7 @@ export function HeroEnlarger() {
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
             <a
-              href={RELEASE_URL}
-              target="_blank"
-              rel="noreferrer"
+              href={release.href}
               className="btn-amber inline-flex h-11 items-center gap-2 rounded-full px-6 text-[14px] font-semibold"
             >
               Download for macOS
@@ -150,6 +149,8 @@ export function HeroEnlarger() {
               Inside the optical chain
             </a>
           </div>
+
+          <ReleaseNote version={release.version} className="mt-4" />
         </div>
 
         <div

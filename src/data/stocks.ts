@@ -44,8 +44,7 @@ export interface StockProfile {
   grade: StockGrade;
 }
 
-export const STOCK_FAMILIES: ("All 14" | StockFamily)[] = [
-  "All 14",
+export const STOCK_FAMILIES: StockFamily[] = [
   "Portra",
   "Kodak Daylight",
   "Fujifilm",

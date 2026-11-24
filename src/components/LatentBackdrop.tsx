@@ -2,21 +2,18 @@
 
 import React, { useEffect, useRef } from "react";
 
-interface LatentBackdropProps {
-  /** Optional calm element ref where Bayer lattice intensity eases slightly for text legibility. */
-  calmElementRef?: React.RefObject<HTMLElement | null>;
-  className?: string;
-}
-
+/** A cell's side in CSS pixels. The canvas holds one texel per cell and is scaled up unsmoothed. */
+const CELL = 2;
 const TRAIL_CAPACITY = 20;
+/** How fast the field drifts against the page as it scrolls: a layer far behind the content. */
+const PARALLAX = 0.3;
+/** The field's strength over a section that sets none. */
+const DEFAULT_LEVEL = 0.5;
+/** The clock a still frame is drawn at when motion is reduced. */
+const STILL_TIME = 12;
 
 const VERT_SRC = `#version 300 es
-precision highp float;
-const vec2 POS[3] = vec2[3](
-  vec2(-1.0, -1.0),
-  vec2( 3.0, -1.0),
-  vec2(-1.0,  3.0)
-);
+const vec2 POS[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
 void main() {
   gl_Position = vec4(POS[gl_VertexID], 0.0, 1.0);
 }
@@ -24,9 +21,11 @@ void main() {
 
 const FRAG_SRC = `#version 300 es
 precision highp float;
-uniform vec2 u_size;
-uniform float u_cellPoints;
+uniform vec2 u_cells;
 uniform float u_time;
+uniform float u_scroll;
+uniform float u_level;
+uniform vec2 u_glow;
 uniform vec4 u_column;
 uniform float u_columnFalloff;
 uniform vec4 u_pointer;
@@ -84,309 +83,291 @@ float sdBox(vec2 p, vec4 r, float rad) {
 }
 
 void main() {
-  vec2 cell = floor(gl_FragCoord.xy / u_cellPoints);
-  vec2 p = vec2((cell.x + 0.5) * u_cellPoints, u_size.y - (cell.y + 0.5) * u_cellPoints);
+  // One fragment per cell, counted from the field's top left; p is the cell's centre in CSS pixels.
+  vec2 cell = vec2(floor(gl_FragCoord.x), u_cells.y - 1.0 - floor(gl_FragCoord.y));
+  vec2 size = u_cells * ${CELL.toFixed(1)};
+  vec2 p = (cell + 0.5) * ${CELL.toFixed(1)};
   float t = u_time;
 
+  // The column of words stays nearly clear, with no edge to show where the clearing ends.
   float calm = 1.0;
   if (u_columnFalloff > 0.0) {
-    float calmD = sdBox(p, u_column, 20.0);
-    calm = smoothstep(0.0, u_columnFalloff, calmD);
+    calm = mix(0.2, 1.0, smoothstep(0.0, u_columnFalloff, sdBox(p, u_column, 64.0)));
   }
 
+  // The pointer's light: a pool where it is, wider while it rests, and the fading trail behind it.
   vec2 dp = p - u_pointer.xy;
-  float r0 = 60.0 + 48.0 * u_pointer.w;
+  float r0 = 56.0 + 44.0 * u_pointer.w;
   float e = u_pointer.z * exp(-dot(dp, dp) / (r0 * r0));
   for (int i = 0; i < ${TRAIL_CAPACITY}; i++) {
     vec4 s = u_trail[i];
     if (s.w < 0.5) continue;
-    float rs = 50.0 + s.z * 38.0;
+    float rs = 48.0 + s.z * 38.0;
     vec2 d = p - s.xy;
     e += 0.42 * exp(-dot(d, d) / (rs * rs)) * exp(-s.z * 1.5);
   }
 
-  // Subtle ambient warm golden-amber corner radiance echoing Rolls view screenshot
-  vec2 corner = p - vec2(u_size.x * 0.90, u_size.y * 0.85);
-  float cornerPool = 0.34 * exp(-dot(corner, corner) / (320.0 * 320.0));
+  // The pointer plays over the open field only: where a section dims the field for its content, it dims too.
+  e *= smoothstep(0.45, 0.95, u_level);
 
-  float el = (1.0 - exp(-1.25 * (e + cornerPool))) * mix(0.28, 1.0, calm);
-  vec2 uv = p / max(u_size, vec2(1.0)) - 0.5;
-  float vig = smoothstep(0.18, 0.85, length(uv * vec2(1.0, 1.1)));
+  // The safelight: a warm pool on the horizon where the page closes. u_glow is its strength and its y.
+  vec2 gp = (p - vec2(size.x * 0.5, u_glow.y)) / vec2(size.x * 0.44, size.y * 0.46);
+  e += u_glow.x * 1.2 * exp(-dot(gp, gp));
+
+  float el = (1.0 - exp(-1.25 * e)) * mix(0.16, 1.0, calm);
+
+  vec2 uv = p / size - 0.5;
+  float vig = smoothstep(0.2, 0.8, length(uv * vec2(1.0, 1.12)));
   float a = clamp(el * 1.5, 0.0, 1.0);
-  float c = clouds(p, t, 340.0);
-  float cov = (0.015 + 0.045 * vig + smoothstep(0.38, 0.70, c) * (0.30 + 0.12 * vig)) * mix(0.35, 1.0, calm) + el * 0.52;
-  cov *= u_intro;
+  float c = clouds(p + vec2(0.0, u_scroll), t, 340.0);
+  float field = (0.014 + 0.04 * vig + smoothstep(0.38, 0.70, c) * (0.30 + 0.12 * vig)) * calm;
+  float cov = (field * u_level + el * 0.5) * u_intro;
 
-  float thr = bayer8(cell);
-  if (cov < thr * 0.985 + 0.002) {
+  if (cov < bayer8(cell) * 0.985 + 0.002) {
     fragColor = vec4(0.0);
     return;
   }
 
-  float alpha = u_ink.w * (1.0 + 0.65 * a);
-  vec3 col = mix(u_ink.rgb, u_accent.rgb, a * 0.88);
-  fragColor = vec4(col * alpha, alpha);
+  float alpha = u_ink.w * (1.0 + 0.5 * a);
+  fragColor = vec4(mix(u_ink.rgb, u_accent.rgb, a * 0.8) * alpha, alpha);
 }
 `;
 
-function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader | null {
-  const s = gl.createShader(type);
-  if (!s) return null;
-  gl.shaderSource(s, src);
-  gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    gl.deleteShader(s);
-    return null;
-  }
-  return s;
+const UNIFORMS = [
+  "u_cells",
+  "u_time",
+  "u_scroll",
+  "u_level",
+  "u_glow",
+  "u_column",
+  "u_columnFalloff",
+  "u_pointer",
+  "u_ink",
+  "u_accent",
+  "u_intro",
+  "u_trail",
+] as const;
+
+function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader;
+  gl.deleteShader(shader);
+  return null;
+}
+
+function link(gl: WebGL2RenderingContext): WebGLProgram | null {
+  const vertex = compile(gl, gl.VERTEX_SHADER, VERT_SRC);
+  const fragment = compile(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
+  const program = gl.createProgram();
+  if (!vertex || !fragment || !program) return null;
+  gl.attachShader(program, vertex);
+  gl.attachShader(program, fragment);
+  gl.linkProgram(program);
+  return gl.getProgramParameter(program, gl.LINK_STATUS) ? program : null;
 }
 
 /**
- * WebGL2 port of Argent's Swift/Metal OpenRollBackdropShader tuned to match the app's
- * dark carbon dot-matrix lattice and warm golden-amber light pool.
+ * The Latent image from Argent's Open roll page, ported from its Metal shader: a fixed lattice of
+ * cells behind the whole page, each lit or not by comparing its coverage with an ordered threshold.
+ *
+ * It reads the page through three attributes. `data-backdrop="0..1"` on a section sets the field's
+ * strength while that section holds the middle of the viewport. `data-backdrop-calm` marks a column
+ * of words the field keeps clear. `data-backdrop-glow` marks the section whose arrival brings up
+ * a warm pool along its bottom edge.
+ *
+ * Without WebGL2 the page keeps its plain ground.
  */
-export function LatentBackdrop({ calmElementRef, className = "" }: LatentBackdropProps) {
+export function LatentBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const pointer = { x: -999, y: -999, presence: 0, dwell: 0, lastMove: 0 };
-    const trail: { x: number; y: number; age: number }[] = [];
-    let isVisible = true;
-    let rafId = 0;
-
-    const getCalmRect = () => {
-      const hostRect = canvas.getBoundingClientRect();
-      const target = calmElementRef?.current;
-      if (!target) return { rect: [0, 0, 0, 0] as [number, number, number, number], falloff: 0 };
-      const r = target.getBoundingClientRect();
-      const margin = 12;
-      const x = r.left - hostRect.left - margin;
-      const y = r.top - hostRect.top - margin;
-      const w = r.width + margin * 2;
-      const h = r.height + margin * 2;
-      const room = Math.max(0, Math.min(x, hostRect.width - (x + w)));
-      const falloff = Math.min(110, Math.max(48, 0.6 * room));
-      return { rect: [x, y, w, h] as [number, number, number, number], falloff };
-    };
-
-    const drawStatic2D = () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const w = canvas.clientWidth || 1280;
-      const h = canvas.clientHeight || 720;
-      canvas.width = w;
-      canvas.height = h;
-      ctx.clearRect(0, 0, w, h);
-      const step = 6;
-      const bayer4 = [
-        [0, 8, 2, 10],
-        [12, 4, 14, 6],
-        [3, 11, 1, 9],
-        [15, 7, 13, 5],
-      ];
-      for (let y = 0; y < h; y += step) {
-        for (let x = 0; x < w; x += step) {
-          const nx = x / w - 0.55;
-          const ny = y / h - 0.45;
-          const field = Math.sin(x * 0.008) * Math.cos(y * 0.009) * 0.5 + 0.5;
-          const vig = Math.min(1, Math.hypot(nx, ny * 1.1) * 1.3);
-          const cov = 0.04 + 0.16 * field * vig;
-          const thr = bayer4[(y / step) & 3][(x / step) & 3] / 16;
-          if (cov > thr) {
-            ctx.fillStyle = "rgba(216, 216, 212, 0.14)";
-            ctx.fillRect(x, y, 2, 2);
-          }
-        }
-      }
-    };
-
-    if (reducedMotion) {
-      drawStatic2D();
-      return;
-    }
+    const host = canvas?.parentElement;
+    if (!canvas || !host) return;
 
     const gl = canvas.getContext("webgl2", {
       alpha: true,
       antialias: false,
       premultipliedAlpha: true,
-      powerPreference: "high-performance",
     });
+    const program = gl && link(gl);
+    if (!gl || !program) return;
 
-    if (!gl) {
-      drawStatic2D();
-      return;
-    }
-
-    const vs = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC);
-    const fs = compileShader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
-    if (!vs || !fs) {
-      drawStatic2D();
-      return;
-    }
-
-    const prog = gl.createProgram();
-    if (!prog) return;
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      gl.deleteProgram(prog);
-      drawStatic2D();
-      return;
-    }
-
+    const uniform = Object.fromEntries(
+      UNIFORMS.map((name) => [name, gl.getUniformLocation(program, name)])
+    ) as Record<(typeof UNIFORMS)[number], WebGLUniformLocation | null>;
     const vao = gl.createVertexArray();
-    const uSize = gl.getUniformLocation(prog, "u_size");
-    const uCell = gl.getUniformLocation(prog, "u_cellPoints");
-    const uTime = gl.getUniformLocation(prog, "u_time");
-    const uColumn = gl.getUniformLocation(prog, "u_column");
-    const uFalloff = gl.getUniformLocation(prog, "u_columnFalloff");
-    const uPointer = gl.getUniformLocation(prog, "u_pointer");
-    const uInk = gl.getUniformLocation(prog, "u_ink");
-    const uAccent = gl.getUniformLocation(prog, "u_accent");
-    const uIntro = gl.getUniformLocation(prog, "u_intro");
-    const uTrail = gl.getUniformLocation(prog, "u_trail");
 
-    let width = 0;
-    let height = 0;
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const cw = canvas.clientWidth || window.innerWidth;
-      const ch = canvas.clientHeight || window.innerHeight;
-      width = cw;
-      height = ch;
-      canvas.width = Math.max(1, Math.round(cw * dpr));
-      canvas.height = Math.max(1, Math.round(ch * dpr));
-      gl.viewport(0, 0, canvas.width, canvas.height);
-    };
-    resize();
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-backdrop]"));
+    const calmColumns = Array.from(document.querySelectorAll<HTMLElement>("[data-backdrop-calm]"));
+    const glowSection = document.querySelector<HTMLElement>("[data-backdrop-glow]");
 
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        isVisible = entries[0]?.isIntersecting ?? true;
-      },
-      { threshold: 0.01 }
-    );
-    io.observe(canvas);
-
-    const onPointerMove = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      if (
-        e.clientY < rect.top ||
-        e.clientY > rect.bottom ||
-        e.clientX < rect.left ||
-        e.clientX > rect.right
-      ) {
-        pointer.presence = 0;
-        return;
-      }
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const dist = Math.hypot(x - pointer.x, y - pointer.y);
-      if (dist > 6) {
-        trail.unshift({ x, y, age: 0 });
-        if (trail.length > TRAIL_CAPACITY) trail.pop();
-        pointer.lastMove = performance.now();
-        pointer.dwell = Math.max(0, pointer.dwell - 0.15);
-      }
-      pointer.x = x;
-      pointer.y = y;
-      pointer.presence = 1;
-    };
-
-    const onPointerLeave = () => {
-      pointer.presence = 0;
-    };
-
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("pointerleave", onPointerLeave, { passive: true });
-
-    const start = performance.now();
-    let prev = start;
+    const pointer = { x: 0, y: 0, target: 0, presence: 0, dwell: 0, lastMove: 0 };
+    const trail: { x: number; y: number; age: number }[] = [];
     const trailFlat = new Float32Array(TRAIL_CAPACITY * 4);
+    let level = Number(sections[0]?.dataset.backdrop ?? DEFAULT_LEVEL);
+    let glow = 0;
+    let cells = { x: 1, y: 1 };
+    let rafId = 0;
+    const start = performance.now();
+    let previous = start;
 
-    const tick = (now: number) => {
-      rafId = requestAnimationFrame(tick);
-      if (!isVisible || document.hidden) {
-        prev = now;
-        return;
+    const resize = () => {
+      cells = {
+        x: Math.max(1, Math.ceil(host.clientWidth / CELL)),
+        y: Math.max(1, Math.ceil(host.clientHeight / CELL)),
+      };
+      canvas.width = cells.x;
+      canvas.height = cells.y;
+      canvas.style.width = `${cells.x * CELL}px`;
+      canvas.style.height = `${cells.y * CELL}px`;
+      gl.viewport(0, 0, cells.x, cells.y);
+    };
+
+    /** The strength the page asks for now, the pool's rise, and the column to keep clear. */
+    const readPage = () => {
+      const viewport = window.innerHeight;
+      const middle = viewport / 2;
+      let targetLevel = DEFAULT_LEVEL;
+      for (const section of sections) {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= middle && rect.bottom > middle) {
+          targetLevel = Number(section.dataset.backdrop);
+          break;
+        }
       }
-      const dt = Math.min(0.05, Math.max(0.001, (now - prev) / 1000));
-      prev = now;
-      const elapsed = (now - start) / 1000;
 
-      if (pointer.presence > 0) {
-        const restSeconds = (now - pointer.lastMove) / 1000;
-        pointer.dwell =
-          restSeconds > 0.15
-            ? Math.min(1, pointer.dwell + dt * 0.7)
-            : Math.max(0, pointer.dwell - dt * 1.4);
+      const glowRect = glowSection?.getBoundingClientRect();
+      const targetGlow = glowRect ? Math.min(1, Math.max(0, (viewport - glowRect.top) / (viewport * 0.85))) : 0;
+      const glowY = glowRect ? glowRect.bottom : viewport;
+
+      let column: [number, number, number, number] = [0, 0, 0, 0];
+      let falloff = 0;
+      for (const element of calmColumns) {
+        const rect = element.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > viewport) continue;
+        const margin = 10;
+        const x = rect.left - margin;
+        const width = rect.width + margin * 2;
+        const room = Math.max(0, Math.min(x, host.clientWidth - (x + width)));
+        column = [x, rect.top - margin, width, rect.height + margin * 2];
+        falloff = Math.min(190, Math.max(64, 0.8 * room));
+        break;
+      }
+
+      return { targetLevel, targetGlow, glowY, column, falloff };
+    };
+
+    const draw = (now: number) => {
+      const dt = Math.min(0.05, Math.max(0.001, (now - previous) / 1000));
+      previous = now;
+      const page = readPage();
+
+      if (still) {
+        level = page.targetLevel;
+        glow = page.targetGlow;
       } else {
-        pointer.dwell = Math.max(0, pointer.dwell - dt * 1.2);
+        const ease = 1 - Math.exp(-dt * 3.2);
+        level += (page.targetLevel - level) * ease;
+        glow += (page.targetGlow - glow) * (1 - Math.exp(-dt * 6));
+        pointer.presence += (pointer.target - pointer.presence) * (1 - Math.exp(-dt * 7));
+        const resting = now - pointer.lastMove > 150;
+        pointer.dwell =
+          pointer.target > 0 && resting
+            ? Math.min(1, pointer.dwell + dt * 0.7)
+            : Math.max(0, pointer.dwell - dt * 1.3);
+        for (let i = trail.length - 1; i >= 0; i--) {
+          trail[i].age += dt;
+          if (trail[i].age > 1.8) trail.splice(i, 1);
+        }
       }
 
-      for (let i = trail.length - 1; i >= 0; i--) {
-        trail[i].age += dt;
-        if (trail[i].age > 1.8) trail.splice(i, 1);
-      }
       trailFlat.fill(0);
-      for (let i = 0; i < trail.length; i++) {
-        trailFlat[i * 4] = trail[i].x;
-        trailFlat[i * 4 + 1] = trail[i].y;
-        trailFlat[i * 4 + 2] = trail[i].age;
-        trailFlat[i * 4 + 3] = 1;
-      }
+      trail.forEach((sample, i) => {
+        trailFlat.set([sample.x, sample.y, sample.age, 1], i * 4);
+      });
 
-      const dpr = canvas.width / Math.max(1, width);
-      const calm = getCalmRect();
-      const intro = Math.min(1, elapsed / 0.85);
-      const easedIntro = 1 - Math.pow(1 - intro, 3);
+      const elapsed = (now - start) / 1000;
+      const intro = still ? 1 : 1 - Math.pow(1 - Math.min(1, elapsed / 0.85), 3);
 
-      gl.useProgram(prog);
+      gl.useProgram(program);
       gl.bindVertexArray(vao);
-      gl.uniform2f(uSize, width, height);
-      gl.uniform1f(uCell, 2.0 * dpr);
-      gl.uniform1f(uTime, elapsed);
-      gl.uniform4f(uColumn, calm.rect[0], calm.rect[1], calm.rect[2], calm.rect[3]);
-      gl.uniform1f(uFalloff, calm.falloff);
-      gl.uniform4f(uPointer, pointer.x, pointer.y, pointer.presence, pointer.dwell);
-      gl.uniform4f(uInk, 216 / 255, 216 / 255, 212 / 255, 0.15);
-      gl.uniform4f(uAccent, 229 / 255, 186 / 255, 84 / 255, 1.0);
-      gl.uniform1f(uIntro, easedIntro);
-      gl.uniform4fv(uTrail, trailFlat);
-
+      gl.uniform2f(uniform.u_cells, cells.x, cells.y);
+      gl.uniform1f(uniform.u_time, still ? STILL_TIME : elapsed);
+      gl.uniform1f(uniform.u_scroll, still ? 0 : window.scrollY * PARALLAX);
+      gl.uniform1f(uniform.u_level, level);
+      gl.uniform2f(uniform.u_glow, glow, page.glowY);
+      gl.uniform4f(uniform.u_column, ...page.column);
+      gl.uniform1f(uniform.u_columnFalloff, page.falloff);
+      gl.uniform4f(uniform.u_pointer, pointer.x, pointer.y, pointer.presence, pointer.dwell);
+      gl.uniform4f(uniform.u_ink, 216 / 255, 216 / 255, 212 / 255, 0.16);
+      gl.uniform4f(uniform.u_accent, 229 / 255, 186 / 255, 84 / 255, 1);
+      gl.uniform1f(uniform.u_intro, intro);
+      gl.uniform4fv(uniform.u_trail, trailFlat);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
 
-    rafId = requestAnimationFrame(tick);
+    const loop = (now: number) => {
+      rafId = requestAnimationFrame(loop);
+      draw(now);
+    };
+    /** Under reduced motion the field holds still and is redrawn only when the page moves under it. */
+    const redraw = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(draw);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      if (Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 6) {
+        trail.unshift({ x: event.clientX, y: event.clientY, age: 0 });
+        if (trail.length > TRAIL_CAPACITY) trail.pop();
+        pointer.lastMove = performance.now();
+      }
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      pointer.target = 1;
+    };
+    const onPointerLeave = () => {
+      pointer.target = 0;
+    };
+
+    const observer = new ResizeObserver(() => {
+      resize();
+      if (still) redraw();
+    });
+    observer.observe(host);
+    resize();
+
+    if (still) {
+      window.addEventListener("scroll", redraw, { passive: true });
+      redraw();
+    } else {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      document.documentElement.addEventListener("pointerleave", onPointerLeave);
+      rafId = requestAnimationFrame(loop);
+    }
 
     return () => {
       cancelAnimationFrame(rafId);
-      ro.disconnect();
-      io.disconnect();
+      observer.disconnect();
+      window.removeEventListener("scroll", redraw);
       window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerleave", onPointerLeave);
+      document.documentElement.removeEventListener("pointerleave", onPointerLeave);
       gl.deleteVertexArray(vao);
-      gl.deleteProgram(prog);
-      gl.deleteShader(vs);
-      gl.deleteShader(fs);
+      gl.deleteProgram(program);
     };
-  }, [calmElementRef]);
+  }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
-    />
+    <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-0 h-lvh overflow-hidden">
+      <canvas ref={canvasRef} className="block [image-rendering:pixelated]" />
+    </div>
   );
 }

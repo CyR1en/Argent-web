@@ -2,28 +2,33 @@ import React from "react";
 import { DownloadFolio } from "@/components/DownloadFolio";
 import { Footer } from "@/components/Footer";
 import { HeroEnlarger } from "@/components/HeroEnlarger";
+import { LatentBackdrop } from "@/components/LatentBackdrop";
 import { Navigation } from "@/components/Navigation";
 import { OpticalPipeline } from "@/components/OpticalPipeline";
-import { PolarityShell } from "@/components/PolarityShell";
-import { ScrollProgressRail } from "@/components/ScrollProgressRail";
+import { FilmFilters } from "@/components/Print";
+import { ScrollThumb } from "@/components/ScrollThumb";
+import { SmoothScroll } from "@/components/SmoothScroll";
 import { StockGallery } from "@/components/StockGallery";
 import { WorkflowStage } from "@/components/WorkflowStage";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-[#141518] text-[#f2f2f0]">
+    <>
+      <SmoothScroll />
+      <FilmFilters />
+      <LatentBackdrop />
       <Navigation />
-      <ScrollProgressRail />
-      <main>
-        <PolarityShell>
+      <div className="relative z-10">
+        <main>
           <HeroEnlarger />
           <OpticalPipeline />
           <StockGallery />
           <WorkflowStage />
           <DownloadFolio />
-        </PolarityShell>
-      </main>
-      <Footer />
-    </div>
+        </main>
+        <Footer />
+      </div>
+      <ScrollThumb />
+    </>
   );
 }

@@ -1,402 +1,194 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { PLATES } from "@/data/plates";
 import { STOCKS } from "@/data/stocks";
+import { clamp01, onScrollFrame, smoothstep } from "@/lib/scroll";
+import { GradeWashes, Grain, Halation, halationOpacity, NEUTRAL_RAW, Photo } from "./Print";
 
-interface PipelineStage {
-  id: string;
-  stopLabel: string;
-  title: string;
-  summary: string;
-  constantLabel: string;
-  constantValue: string;
-}
+/** The `pin` variant's condition in globals.css. */
+const PIN_QUERY = "(prefers-reduced-motion: no-preference) and (min-height: 560px)";
 
-const STAGES: PipelineStage[] = [
+const STOCK = STOCKS.find((stock) => stock.id === "cinestill-800t") ?? STOCKS[0];
+const PLATE = PLATES.night;
+const SIZES = "(min-width: 1144px) 1080px, 100vw";
+
+/** A colour negative as CSS can draw one: inverted, then laid under the orange mask. */
+const NEGATIVE = "invert(1) contrast(0.78) saturate(0.85) brightness(0.96)";
+const ORANGE_MASK = "rgb(222 128 58 / 0.78)";
+
+const STAGES = [
   {
-    id: "raw",
-    stopLabel: "−4 EV",
-    title: "Scene-linear Rec. 2020",
-    summary:
-      "Every frame opens as untouched scene-linear RAW data calibrated to Sony a7 IV spectral sensitivity, log-encoded eight stops below and eight stops above mid-gray.",
-    constantLabel: "Metered mid-gray",
-    constantValue: "11.49 / ISO lux·s",
+    title: "Scene-linear RAW",
+    summary: "Every frame opens as untouched scene-linear data, calibrated to the a7 IV's spectral sensitivity.",
+    constant: "Metered mid-gray · 11.49 / ISO lux·s",
   },
   {
-    id: "negative",
-    stopLabel: "−1 EV",
-    title: "Colour negative & couplers",
-    summary:
-      "Layer exposures pass through fitted natural-reflectance matrices, Status M curve inversion, and interlayer couplers inside a 65³ binary negative LUT.",
-    constantLabel: "Highlight shoulder",
-    constantValue: "+3 to +5.5 stops",
+    title: "Colour negative",
+    summary: "Exposure lands on a modelled negative: published Status M curves, interlayer couplers, and the orange mask.",
+    constant: "Highlight shoulder · +3 to +5.5 stops",
   },
   {
-    id: "enlarger",
-    stopLabel: "+1 EV",
-    title: "3200 K enlarger onto paper",
-    summary:
-      "A 3200 K blackbody enlarger projects through base, orange mask, and cyan/magenta/yellow dyes onto ENDURA Premier or VISION 2383, adapted via CIE 1931 2° to D65.",
-    constantLabel: "Neutral balance",
-    constantValue: "dE2000 < 0.01",
+    title: "Optical print",
+    summary: "A 3200 K enlarger projects the negative onto modelled paper, then the print adapts to D65.",
+    constant: "Neutral balance · dE2000 < 0.01",
   },
   {
-    id: "halation",
-    stopLabel: "+4 EV",
-    title: "Film grain & base halation",
-    summary:
-      "Dye-amount Print Grain Index tables and physical film-base reflection halation execute on Apple silicon Metal in the exact same renderer for preview and export.",
-    constantLabel: "Base reflection",
-    constantValue: "180 – 270 µm radius",
+    title: "Grain & halation",
+    summary: "Grain follows published Print Grain Index tables. Halation is light reflecting off the film base.",
+    constant: "Base reflection · 180 – 270 µm radius",
   },
 ];
-
-const STAGE_HISTOGRAMS = [
-  // Stage 0: Scene-linear RAW (wide, gentle neutral dynamic spread)
-  {
-    b: "M0,54 L0,36 C28,32 62,28 96,29 C130,30 162,26 200,44 L200,54 Z",
-    g: "M0,54 L0,38 C32,33 66,30 100,31 C134,32 166,28 200,46 L200,54 Z",
-    r: "M0,54 L0,40 C34,34 68,31 104,32 C138,33 170,30 200,47 L200,54 Z",
-  },
-  // Stage 1: Colour negative & orange mask compression (mid-right warm cluster)
-  {
-    b: "M0,54 L0,48 C36,46 68,38 96,24 C122,12 152,22 180,44 L200,52 L200,54 Z",
-    g: "M0,54 L0,46 C40,42 74,26 112,18 C144,12 168,26 190,46 L200,52 L200,54 Z",
-    r: "M0,54 L0,44 C48,38 90,14 134,12 C164,10 184,26 200,46 L200,54 Z",
-  },
-  // Stage 2: 3200 K enlarger onto paper (rich dual-lobe balanced print)
-  {
-    b: "M0,54 L0,30 C25,18 45,42 75,38 C110,33 135,12 165,16 C182,18 192,38 200,48 L200,54 Z",
-    g: "M0,54 L0,40 C30,28 58,20 92,26 C128,32 150,8 178,24 C190,32 195,44 200,50 L200,54 Z",
-    r: "M0,54 L0,44 C28,38 52,18 85,22 C118,26 142,20 172,14 C186,11 194,35 200,50 L200,54 Z",
-  },
-  // Stage 3: Night tungsten halation (deep left shadow anchor + right specular spike)
-  {
-    b: "M0,54 L0,14 C18,10 42,26 78,42 C118,48 158,46 186,28 C194,22 198,38 200,50 L200,54 Z",
-    g: "M0,54 L0,22 C24,18 52,32 88,44 C126,48 164,42 186,24 C194,18 198,38 200,50 L200,54 Z",
-    r: "M0,54 L0,28 C28,24 58,36 96,44 C132,46 164,28 184,12 C192,10 197,32 200,48 L200,54 Z",
-  },
-];
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v));
-}
-
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
-}
 
 /**
- * Sticky scroll-driven Liquid Glass optical bench (Act II) walking through Argent's
- * 4 physical stages with Argent's live RGB area histogram and Status M curve readout.
+ * Where along the pinned scroll each change happens: the negative sweeps in, the print sweeps
+ * over it, then grain and halation come up. Each sweep is [start, end] of the track's progress.
+ */
+const NEGATIVE_SWEEP = [0.08, 0.34] as const;
+const PRINT_SWEEP = [0.42, 0.68] as const;
+const BLOOM = [0.76, 0.94] as const;
+/** The progress at which each stage's caption takes over: halfway through the change into it. */
+const STAGE_STARTS = [0, 0.21, 0.55, 0.82];
+
+/**
+ * The optical chain as one pinned photograph: scrolling carries it from neutral RAW through the
+ * negative and the print to grain and halation. Where the stage cannot pin, the finished print
+ * stands beside all four steps.
  */
 export function OpticalPipeline() {
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [activeStage, setActiveStage] = useState(0);
-
-  const portra400 = useMemo(
-    () => STOCKS.find((s) => s.id === "kodak-portra-400") ?? STOCKS[0],
-    []
-  );
-  const ridge = PLATES[0];
-  const night = PLATES[2];
+  const [stage, setStage] = useState(0);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) {
-      setProgress(0.68);
-      setActiveStage(2);
-      return;
-    }
+    const track = trackRef.current;
+    if (!track) return;
 
-    let rafId = 0;
-    const measure = () => {
-      rafId = 0;
-      const el = trackRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const totalScroll = Math.max(1, el.offsetHeight - window.innerHeight);
-      const p = clamp(-rect.top / totalScroll, 0, 1);
-      setProgress(p);
-      setActiveStage(Math.min(3, Math.floor(p * 3.999)));
+    const pinned = window.matchMedia(PIN_QUERY);
+    let stop: (() => void) | undefined;
+
+    const sync = () => {
+      stop?.();
+      stop = undefined;
+      // Unpinned, the layers fall back to their finished state.
+      for (const name of ["--neg", "--print", "--bloom", "--seam", "--seam-on", "--progress"]) {
+        track.style.removeProperty(name);
+      }
+      if (!pinned.matches) return;
+
+      stop = onScrollFrame(() => {
+        const rect = track.getBoundingClientRect();
+        const distance = rect.height - window.innerHeight;
+        const progress = distance > 0 ? clamp01(-rect.top / distance) : 0;
+        const neg = smoothstep(...NEGATIVE_SWEEP, progress);
+        const print = smoothstep(...PRINT_SWEEP, progress);
+        const sweeping = print > 0 ? print : neg;
+
+        return () => {
+          track.style.setProperty("--neg", neg.toFixed(4));
+          track.style.setProperty("--print", print.toFixed(4));
+          track.style.setProperty("--bloom", smoothstep(...BLOOM, progress).toFixed(4));
+          track.style.setProperty("--seam", sweeping.toFixed(4));
+          track.style.setProperty("--seam-on", sweeping > 0.004 && sweeping < 0.996 ? "1" : "0");
+          track.style.setProperty("--progress", progress.toFixed(4));
+          setStage(STAGE_STARTS.findLastIndex((start) => progress >= start));
+        };
+      });
     };
 
-    const onScroll = () => {
-      if (!rafId) rafId = requestAnimationFrame(measure);
-    };
-
-    measure();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
+    sync();
+    pinned.addEventListener("change", sync);
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      pinned.removeEventListener("change", sync);
+      stop?.();
     };
   }, []);
 
-  const jumpToStage = (idx: number) => {
-    setActiveStage(idx);
-    const el = trackRef.current;
-    if (!el) return;
-    const isDesktop = window.innerWidth >= 1024;
-    if (!isDesktop) {
-      setProgress(idx / 3);
-      return;
-    }
-    const top = window.scrollY + el.getBoundingClientRect().top;
-    const totalScroll = Math.max(1, el.offsetHeight - window.innerHeight);
-    window.scrollTo({ top: top + (idx / 3) * totalScroll, behavior: "smooth" });
-  };
-
-  const negWeight =
-    smoothstep(0.14, 0.38, progress) * (1 - smoothstep(0.52, 0.72, progress));
-  const printWeight = smoothstep(0.48, 0.74, progress);
-  const grainWeight = smoothstep(0.70, 0.94, progress);
-  const curveDraw = clamp(0.18 + progress * 0.82, 0.18, 1);
-
-  const stageInfo = STAGES[activeStage];
-  const displayPlate = activeStage === 3 ? night : ridge;
-  const activeHist = STAGE_HISTOGRAMS[activeStage] ?? STAGE_HISTOGRAMS[2];
-
-  const curveGeometry = useMemo(() => {
-    const { logH, r, g, b } = portra400.curves;
-    const w = 280;
-    const h = 68;
-    const minX = logH[0];
-    const maxX = logH[logH.length - 1];
-    const minY = 0.15;
-    const maxY = 2.65;
-    const toPath = (arr: number[]) =>
-      arr
-        .map((val, i) => {
-          const x = ((logH[i] - minX) / (maxX - minX)) * w;
-          const y = h - ((val - minY) / (maxY - minY)) * h;
-          return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(" ");
-    return { w, h, rPath: toPath(r), gPath: toPath(g), bPath: toPath(b) };
-  }, [portra400]);
-
   return (
-    <section
-      id="optical-model"
-      ref={trackRef}
-      className="relative border-t border-white/10 bg-[#141518] text-[#f2f2f0] lg:min-h-[280vh]"
-    >
-      <div className="mx-auto max-w-[1220px] px-4 py-20 sm:px-8 lg:sticky lg:top-16 lg:flex lg:min-h-[calc(100vh-64px)] lg:items-center lg:py-8">
-        <div className="grid w-full grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12">
-          {/* Left Sticky Liquid Glass Optical Bench */}
-          <div className="lg:col-span-7">
-            <div className="liquid-glass-panel rounded-[18px] p-4">
-              {/* Top Bench Readout */}
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 font-mono text-[11.5px] text-[#a4a6ae]">
-                <span className="tabular-nums text-[#f1c24c]">
-                  {stageInfo.stopLabel} · {stageInfo.title}
-                </span>
-                <span className="tabular-nums">
-                  {stageInfo.constantLabel}: {stageInfo.constantValue}
-                </span>
-              </div>
+    <section id="optical-model" data-backdrop="0.55" className="relative">
+      <h2 className="px-4 text-center text-[clamp(2.1rem,4vw,3.2rem)] font-semibold leading-[1.06] tracking-[-0.03em] sm:px-8">
+        Film physics, never a LUT preset.
+      </h2>
 
-              {/* Morphing Specimen Frame */}
-              <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[12px] bg-[#0e0f12]">
-                <img
-                  src={displayPlate.src}
-                  alt={`Optical bench simulation at stage ${stageInfo.title}`}
-                  className="h-full w-full object-cover transition-all duration-300"
-                  style={{
-                    filter:
-                      printWeight > 0.25
-                        ? `contrast(${(0.92 + printWeight * 0.16).toFixed(2)}) saturate(${(
-                            0.84 +
-                            printWeight * 0.22
-                          ).toFixed(2)}) sepia(${(printWeight * 0.08).toFixed(2)})`
-                        : "contrast(0.90) saturate(0.84) brightness(1.03)",
-                  }}
+      <div ref={trackRef} className="pin:h-[360svh]">
+        <div className="flex flex-col justify-center px-4 pb-24 pt-12 sm:px-8 pin:sticky pin:top-0 pin:h-svh pin:pb-6 pin:pt-[76px]">
+          {/* As wide as the page allows, and never so tall that the caption leaves the viewport. */}
+          <div className="@container mx-auto w-full max-w-[1080px] pin:w-[min(100%,calc((100svh-17.5rem)*1.5))]">
+            <div className="print-frame aspect-[3/2] w-full">
+              <div className="absolute inset-0 pin:[transform:scale(calc(1+var(--progress,0)*0.07))] pin:will-change-transform">
+                <Photo
+                  src={PLATE.src}
+                  alt={`${PLATE.subject}, carried from neutral RAW to a print on ${STOCK.displayName}`}
+                  sizes={SIZES}
+                  filter={NEUTRAL_RAW}
                 />
 
-                {/* Stage 2: C-41 Negative Dye & Orange Mask */}
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0"
-                  style={{ opacity: negWeight }}
+                  className="absolute inset-0 [clip-path:inset(0_calc((1-var(--neg,1))*100%)_0_0)]"
                 >
-                  <img
-                    src={ridge.src}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                    style={{
-                      filter:
-                        "invert(1) hue-rotate(174deg) saturate(1.18) contrast(0.84) brightness(0.94)",
-                    }}
-                  />
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      backgroundColor: "rgba(186, 92, 36, 0.50)",
-                      mixBlendMode: "multiply",
-                    }}
-                  />
+                  <Photo src={PLATE.src} alt="" sizes={SIZES} filter={NEGATIVE} />
+                  <div className="absolute inset-0 mix-blend-multiply" style={{ backgroundColor: ORANGE_MASK }} />
                 </div>
 
-                {/* Stage 3: 3200 K Enlarger Sweep */}
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    opacity:
-                      Math.sin(clamp((progress - 0.35) / 0.35, 0, 1) * Math.PI) * 0.55,
-                    background:
-                      "radial-gradient(ellipse 75% 75% at 50% 45%, rgba(241, 194, 76, 0.40), rgba(180, 90, 38, 0.08) 70%, transparent 100%)",
-                    mixBlendMode: "screen",
-                  }}
-                />
-
-                {/* Stage 4: Optical Grain + Base Reflection Halation */}
-                <div
-                  aria-hidden="true"
-                  className="optical-grain-layer pointer-events-none absolute inset-0"
-                  style={{ opacity: 0.04 + grainWeight * 0.16 }}
-                />
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    opacity: grainWeight * 0.78,
-                    mixBlendMode: "screen",
-                    backgroundImage: displayPlate.halationFocus
-                      .map(
-                        (pt) =>
-                          `radial-gradient(circle at ${pt.xPct}% ${pt.yPct}%, rgba(235, 58, 28, 0.62) 0%, rgba(210, 44, 24, 0.20) 11%, rgba(180, 32, 16, 0) 25%)`
-                      )
-                      .join(", "),
-                  }}
-                />
-              </div>
-
-              {/* Bottom Telemetry: RGB Area Histogram + Status M Curve Trace */}
-              <div className="mt-3.5 grid grid-cols-1 items-center gap-4 border-t border-white/10 pt-3.5 sm:grid-cols-12">
-                {/* Argent-style RGB Area Histogram */}
-                <div className="sm:col-span-5">
-                  <div className="mb-1.5 flex items-center justify-between font-mono text-[11px] text-[#a4a6ae]">
-                    <span>RGB Response</span>
-                    <span className="text-[#f1c24c]">{stageInfo.stopLabel}</span>
-                  </div>
-                  <svg
-                    viewBox="0 0 200 54"
-                    className="h-[46px] w-full rounded bg-black/35"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d={activeHist.b}
-                      fill="rgba(91, 155, 255, 0.45)"
-                      className="transition-all duration-500 ease-out"
-                    />
-                    <path
-                      d={activeHist.g}
-                      fill="rgba(82, 201, 125, 0.42)"
-                      className="transition-all duration-500 ease-out"
-                    />
-                    <path
-                      d={activeHist.r}
-                      fill="rgba(235, 87, 87, 0.42)"
-                      className="transition-all duration-500 ease-out"
-                    />
-                  </svg>
+                  className="absolute inset-0 [clip-path:inset(0_calc((1-var(--print,1))*100%)_0_0)]"
+                >
+                  <Photo src={PLATE.src} alt="" sizes={SIZES} filter={STOCK.grade.filter} />
+                  <GradeWashes grade={STOCK.grade} />
                 </div>
 
-                {/* Real Portra 400 Status M Curve Trace */}
-                <div className="sm:col-span-7">
-                  <div className="mb-1.5 flex items-center justify-between font-mono text-[11px] text-[#a4a6ae]">
-                    <span>Portra 400 · Status M</span>
-                    <span>E-4050</span>
-                  </div>
-                  <svg
-                    viewBox={`0 0 ${curveGeometry.w} ${curveGeometry.h}`}
-                    className="h-[46px] w-full overflow-visible"
-                    aria-label="Portra 400 Status M sensitometric curves"
-                  >
-                    <line
-                      x1="0"
-                      y1={curveGeometry.h}
-                      x2={curveGeometry.w}
-                      y2={curveGeometry.h}
-                      stroke="rgba(255,255,255,0.14)"
-                    />
-                    <clipPath id="pipeline-curve-clip">
-                      <rect
-                        x="0"
-                        y="0"
-                        width={curveGeometry.w * curveDraw}
-                        height={curveGeometry.h + 4}
-                      />
-                    </clipPath>
-                    <g clipPath="url(#pipeline-curve-clip)">
-                      <path
-                        d={curveGeometry.bPath}
-                        fill="none"
-                        stroke="#5B9BFF"
-                        strokeWidth="1.8"
-                      />
-                      <path
-                        d={curveGeometry.gPath}
-                        fill="none"
-                        stroke="#52C97D"
-                        strokeWidth="1.8"
-                      />
-                      <path
-                        d={curveGeometry.rPath}
-                        fill="none"
-                        stroke="#EB5757"
-                        strokeWidth="1.9"
-                      />
-                    </g>
-                  </svg>
+                {/* Each layer carries --bloom itself: a shared wrapper would isolate their blending. */}
+                <Halation
+                  src={PLATE.src}
+                  sizes={SIZES}
+                  opacity={`calc(var(--bloom, 1) * ${halationOpacity(STOCK.grade)})`}
+                />
+                <Grain opacity={`calc(var(--bloom, 1) * ${STOCK.grade.grainOpacity * 1.6})`} />
+
+                {/* The seam each sweep develops behind, in the hero seam's amber. */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 hidden transition-opacity duration-200 [opacity:var(--seam-on,0)] [transform:translateX(calc(var(--seam,0)*100%))] pin:block"
+                >
+                  <div className="h-full w-[1.5px] -translate-x-1/2 bg-amber-line shadow-[0_0_14px_rgb(229_186_84/0.55)]" />
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Right Scroll Chapters */}
-          <div className="lg:col-span-5">
-            <h2 className="text-[clamp(2rem,3.6vw,2.85rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-[#f2f2f0]">
-              Film physics, never a LUT preset.
-            </h2>
-
-            <div className="mt-7 space-y-3">
-              {STAGES.map((stage, index) => {
-                const isActive = index === activeStage;
+            {/* Four segments, each filling as its stage scrolls by. */}
+            <div aria-hidden="true" className="mt-6 hidden w-[220px] gap-1.5 pin:flex">
+              {STAGES.map((item, index) => {
+                const start = STAGE_STARTS[index];
+                const span = (STAGE_STARTS[index + 1] ?? 1) - start;
                 return (
-                  <button
-                    key={stage.id}
-                    type="button"
-                    onClick={() => jumpToStage(index)}
-                    className={`w-full rounded-[14px] p-4 text-left transition-all duration-200 ${
-                      isActive
-                        ? "liquid-glass-panel ring-1 ring-[#e5ba54]/65"
-                        : "border border-white/10 bg-white/[0.02] opacity-70 hover:border-white/20 hover:opacity-95"
-                    }`}
-                  >
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-[17px] font-semibold text-[#f2f2f0]">
-                        {stage.title}
-                      </span>
-                      <span className="font-mono text-[11.5px] tabular-nums text-[#f1c24c]">
-                        {stage.stopLabel}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-[13.5px] leading-[1.55] text-[#a4a6ae]">
-                      {stage.summary}
-                    </p>
-                  </button>
+                  <span key={item.title} className="h-[2px] flex-1 overflow-hidden rounded-full bg-white/15">
+                    <span
+                      className="block h-full origin-left bg-amber"
+                      style={{
+                        transform: `scaleX(clamp(0, calc((var(--progress, 1) - ${start}) / ${span}), 1))`,
+                      }}
+                    />
+                  </span>
                 );
               })}
             </div>
+
+            <ol className="relative mt-8 grid grid-cols-1 gap-x-12 gap-y-8 sm:grid-cols-2 pin:mt-4 pin:block pin:h-[8.5rem] pin:@2xl:h-[6.75rem]">
+              {STAGES.map((item, index) => (
+                <li
+                  key={item.title}
+                  data-active={index === stage}
+                  className="pin:absolute pin:inset-x-0 pin:top-0 pin:translate-y-2 pin:opacity-0 pin:transition-[opacity,transform] pin:duration-500 pin:ease-out-expo pin:data-[active=true]:translate-y-0 pin:data-[active=true]:opacity-100 pin:@2xl:grid pin:@2xl:grid-cols-[1fr_auto] pin:@2xl:gap-x-10"
+                >
+                  <div>
+                    <h3 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">{item.title}</h3>
+                    <p className="mt-1.5 max-w-[58ch] text-[15px] leading-[1.6] text-muted">{item.summary}</p>
+                  </div>
+                  <p className="mt-2.5 font-mono text-[12px] tabular-nums text-amber pin:@2xl:mt-1.5">{item.constant}</p>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       </div>

@@ -7,7 +7,9 @@ Marketing & optical showcase website for [Argent](https://github.com/CyR1en/Arge
 - **Framework:** Next.js 16 (App Router, React 19, TypeScript)
 - **Visual System:** Authentic macOS 27 darkroom carbon palette (`#141518` / `#1D1E21` / `#222326`) with translucent **Liquid Glass** panels, floating filmstrip dock, and Kodachrome golden-amber (`#F1C24C` / `#E5BA54`) accents
 - **Typography:** Self-hosted `Hanken Grotesk` variable font (`SIL OFL 1.1`) for headlines and UI copy, paired with `Fragment Mono` (`tabular-nums`) for EV readouts, film edge-prints, and Status M sensitometry data
-- **Motion & Shaders:** WebGL2 Bayer-8 `LatentBackdrop` ported directly from Argent's Swift/Metal `OpenRollBackdropShader`, smooth Lenis scrolling, scroll-driven optical pipeline bench, and `prefers-reduced-motion` accessibility
+- **Backdrop:** one fixed, full-viewport WebGL2 canvas ([`LatentBackdrop`](src/components/LatentBackdrop.tsx)) ported from Argent's Swift/Metal `OpenRollBackdropShader`. It renders one texel per 2 px cell and scales up unsmoothed, as the app does. Sections steer it with `data-backdrop` (strength), `data-backdrop-calm` (a column of words to keep clear), and `data-backdrop-glow` (the warm pool at the close).
+- **Scroll:** Lenis smooths wheel scroll and in-page links. Every scroll-linked effect subscribes to one read-then-write frame bus ([`src/lib/scroll.ts`](src/lib/scroll.ts)) and writes CSS custom properties, so scrolling never re-renders React. The optical chain pins one photograph and develops it across four stages; under `prefers-reduced-motion`, or in a viewport shorter than 560 px, it shows the finished print beside all four steps instead.
+- **Photographs:** [`Print`](src/components/Print.tsx) composes each frame from a CSS grade, washes, grain, and halation derived from the photograph's own highlights by an SVG filter. They are stand-ins for the look, not Argent renders.
 
 ## Local Development
 
